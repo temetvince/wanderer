@@ -1,0 +1,11 @@
+# Place next to docker-compose.yml in the community-edition checkout.
+# Compose merges this automatically, so the upstream docker-compose.yml stays
+# unmodified and `git pull` in that repo never conflicts.
+services:
+  wanderer:
+    image: wanderer-custom:latest
+    pull_policy: never
+
+  eve-route-builder:
+    image: eve-route-builder-custom:latest
+    pull_policy: never
