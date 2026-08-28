@@ -244,6 +244,16 @@ defmodule WandererAppWeb.Layouts do
             icon="hero-heart-solid"
             tip="Our Sponsors"
           />
+          <.external_nav_link
+            href="https://astralaide.com"
+            icon="hero-sparkles-solid"
+            tip="Astral Aide"
+          />
+          <.external_nav_link
+            href="https://seat.astralaide.com"
+            icon="hero-chart-bar-solid"
+            tip="SeAT"
+          />
         </div>
       </div>
       <div>
@@ -293,6 +303,28 @@ defmodule WandererAppWeb.Layouts do
         </div>
       </div>
     </ul>
+    """
+  end
+
+  attr :href, :string
+  attr :class, :string, default: ""
+  attr :icon, :string
+  attr :tip, :string
+
+  defp external_nav_link(assigns) do
+    ~H"""
+    <li class={["flex-1 w-full ", @class]}>
+      <div class="tooltip tooltip-right" data-tip={@tip}>
+        <.link
+          href={@href}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="h-full w-full text-gray-400 hover:text-white block p-3"
+        >
+          <.icon name={@icon} class="w-6 h-6" />
+        </.link>
+      </div>
+    </li>
     """
   end
 
