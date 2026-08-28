@@ -5,6 +5,12 @@ services:
   wanderer:
     image: wanderer-custom:latest
     pull_policy: never
+    # Caddy reaches wanderer over the shared `web` network, so the direct
+    # host-port publish is unnecessary and would bypass the proxy. `!override`
+    # (requires Docker Compose v2.24+) replaces the base file's ports instead
+    # of merging with them. Delete these two lines if you ever run without a
+    # reverse proxy and need http://server:8000 back.
+    ports: !override []
 
   eve-route-builder:
     image: eve-route-builder-custom:latest

@@ -13,6 +13,7 @@
 #   git clone --branch custom https://github.com/temetvince/eve-route-builder.git
 #   git -C eve-route-builder remote add upstream https://github.com/wanderer-industries/eve-route-builder.git
 #   cp wanderer/deploy/docker-compose.override.yml community-edition/
+#   cp wanderer/deploy/community-edition.env community-edition/.env   # append instead if .env exists
 #   cp wanderer/deploy/update.sh /home/ubuntu/update.sh && chmod +x /home/ubuntu/update.sh
 
 set -euo pipefail
