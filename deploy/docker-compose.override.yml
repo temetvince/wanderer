@@ -1,6 +1,7 @@
 # Place next to docker-compose.yml in the community-edition checkout.
-# Compose merges this automatically, so the upstream docker-compose.yml stays
-# unmodified and `git pull` in that repo never conflicts.
+# Compose merges this automatically, so the upstream docker-compose.yml and
+# reverse-proxy/docker-compose.caddy-gen.yml stay unmodified and `git pull`
+# in that repo never conflicts.
 services:
   wanderer:
     image: wanderer-custom:latest
@@ -15,3 +16,9 @@ services:
   eve-route-builder:
     image: eve-route-builder-custom:latest
     pull_policy: never
+
+  # Proxy to the wanderer container over the `web` network instead of going
+  # out to the public IP and back through the (now removed) host port. This
+  # also carries the domain, so the upstream caddy-gen file needs no edits.
+  caddy-gen:
+    command: caddy reverse-proxy --from https://maps.astralaide.com --to http://wanderer:8000
