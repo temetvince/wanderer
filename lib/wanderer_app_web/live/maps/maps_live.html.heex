@@ -472,6 +472,48 @@
                     field={f[:restrict_offline_showing]}
                     label="Show offline characters to admins & managers only"
                   />
+                  <div class="mt-2 border border-dashed border-stone-600 rounded p-3">
+                    <p class="text-xs text-stone-400 mb-2">
+                      Auto-label jumped systems (applied by the server for all users)
+                    </p>
+                    <.input
+                      type="select"
+                      field={f[:auto_label_jumped_label]}
+                      class="select h-8 min-h-[10px] !pt-1 !pb-1 text-sm bg-neutral-900"
+                      label="System custom label format"
+                      options={@auto_label_format_options}
+                    />
+                    <.input
+                      type="select"
+                      field={f[:auto_label_jumped_tag]}
+                      class="select h-8 min-h-[10px] !pt-1 !pb-1 text-sm bg-neutral-900"
+                      label="System tag format"
+                      options={@auto_label_format_options}
+                    />
+                    <.input
+                      type="select"
+                      field={f[:auto_label_jumped_temp_name]}
+                      class="select h-8 min-h-[10px] !pt-1 !pb-1 text-sm bg-neutral-900"
+                      label="Temporary system name format"
+                      options={@auto_label_format_options}
+                    />
+                    <.input
+                      type="checkbox"
+                      field={f[:auto_label_start_at_zero]}
+                      label="Start indices at 0"
+                    />
+                    <.input
+                      type="checkbox"
+                      field={f[:auto_label_ignore_return_hole]}
+                      label="Ignore return holes (do not give them a chain index)"
+                    />
+                    <.input
+                      type="text"
+                      field={f[:auto_label_return_hole_symbol]}
+                      label="Return hole symbol"
+                    />
+                    <.input type="text" field={f[:auto_label_separator]} label="Chain separator" />
+                  </div>
                   <.input
                     type="select"
                     field={f[:allowed_copy_for]}

@@ -11,7 +11,14 @@ defmodule WandererApp.MapRepo do
     "show_temp_system_name" => "false",
     "restrict_offline_showing" => "false",
     "allowed_copy_for" => "admin_map",
-    "allowed_paste_for" => "add_system"
+    "allowed_paste_for" => "add_system",
+    "auto_label_jumped_label" => "disabled",
+    "auto_label_jumped_tag" => "disabled",
+    "auto_label_jumped_temp_name" => "disabled",
+    "auto_label_start_at_zero" => "false",
+    "auto_label_ignore_return_hole" => "true",
+    "auto_label_return_hole_symbol" => "",
+    "auto_label_separator" => ""
   }
 
   def get(map_id, relationships \\ []) do
