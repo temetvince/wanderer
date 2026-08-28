@@ -4,6 +4,67 @@
 
 ![Wanderer](https://wanderer.ltd/images/news/09-10-map-features-guide/cover.png)
 
+## About this fork
+
+This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
+[wanderer-industries/wanderer](https://github.com/wanderer-industries/wanderer).
+`main` is a pristine mirror of upstream; all changes live on the `custom` branch:
+
+- **Server-side auto-labeling of jumped systems.** Chain labels (`A`, `A1`,
+  `A21`, or the new letter-only format `A`, `AA`, `ABA`) are computed by the
+  server when a signature is linked, for every user, configured per map in
+  **Map Settings → General** (admins only). Occupied slots are derived from the
+  labels currently on the map, so manual renames are respected: renaming `B` to
+  `C` frees the `B` slot and blocks `C` at that depth. Existing labels are never
+  overwritten, return holes never consume a slot, and the
+  "Show linked signature ID as custom label part" display option is unaffected.
+  No database schema changes: everything lives in existing JSON columns, so
+  upstream migrations continue to apply cleanly.
+- **Sidebar links** to [Astral Aide](https://astralaide.com) and
+  [SeAT](https://seat.astralaide.com).
+- **`Dockerfile.test`** for running the Elixir test suite in Docker (see below).
+
+The companion fork [temetvince/eve-route-builder](https://github.com/temetvince/eve-route-builder)
+fixes "safest" routing through mapped wormhole chains — deploy both together.
+
+### Keeping up with upstream
+
+```bash
+git fetch upstream
+git checkout custom
+git rebase upstream/main
+git push --force-with-lease origin custom
+```
+
+Remotes: `origin` → this fork, `upstream` → wanderer-industries. Because the
+fork avoids schema changes and keeps new code in new files, rebases rarely
+conflict.
+
+### Build and deploy
+
+```bash
+docker build -t wanderer-custom:latest .
+```
+
+In the [community-edition](https://github.com/wanderer-industries/community-edition)
+`docker-compose.yml`, replace `wandererltd/community-edition:latest` with
+`wanderer-custom:latest` (and the route-builder image with
+`eve-route-builder-custom:latest`), then `docker compose up -d`.
+
+After the first deploy, open **Map Settings → General** and set the auto-label
+format(s) — they default to Disabled. Also note `WANDERER_RESTRICT_MAPS_CREATION=true`
+hides the Create Map button for everyone (admins can still create maps once via
+the admin panel).
+
+### Running tests in Docker
+
+```bash
+docker build -f Dockerfile.test -t wanderer-test .
+docker run -d --name wanderer-pg -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:16
+docker run --rm --network container:wanderer-pg wanderer-test                      # full suite
+docker run --rm --network container:wanderer-pg wanderer-test mix test test/unit/auto_label_test.exs
+```
+
 ## Why Wanderer?
 
 Here's what makes Wanderer a great Pathfinder alternative:
