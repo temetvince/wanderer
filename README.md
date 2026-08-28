@@ -46,10 +46,14 @@ conflict.
 docker build -t wanderer-custom:latest .
 ```
 
-In the [community-edition](https://github.com/wanderer-industries/community-edition)
-`docker-compose.yml`, replace `wandererltd/community-edition:latest` with
-`wanderer-custom:latest` (and the route-builder image with
-`eve-route-builder-custom:latest`), then `docker compose up -d`.
+Rather than editing the [community-edition](https://github.com/wanderer-industries/community-edition)
+`docker-compose.yml` (which would make its daily `git pull` conflict), drop
+[`deploy/docker-compose.override.yml`](deploy/docker-compose.override.yml)
+next to it — Compose merges it automatically and swaps in the two custom
+images. [`deploy/update.sh`](deploy/update.sh) is a cron-ready daily updater:
+it mirrors `custom` from GitHub, rebases onto the latest upstream (falling
+back to the last good state on conflict), rebuilds both images, and restarts
+the stack. One-time server setup instructions are at the top of the script.
 
 After the first deploy, open **Map Settings → General** and set the auto-label
 format(s) — they default to Disabled. Also note `WANDERER_RESTRICT_MAPS_CREATION=true`
