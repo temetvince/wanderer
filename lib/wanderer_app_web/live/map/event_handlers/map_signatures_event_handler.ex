@@ -398,9 +398,25 @@ to_remove = removed_signatures |> Enum.filter(fn %{"eve_id" => eve_id} -> "#{sol
         end
       end
 
+      # Server-side auto-labeling: applied for every user based on map-level
+      # options, after all custom_info updates above so it reads fresh data.
+      if is_nil(target_system.linked_sig_eve_id) or
+           target_system.linked_sig_eve_id == signature_eve_id do
+        WandererApp.Map.Server.AutoLabelImpl.maybe_auto_label(
+          map_id,
+          source_system,
+          target_system,
+          signature_eve_id
+        )
+      end
+
       WandererApp.Map.Server.Impl.broadcast!(map_id, :signatures_updated, solar_system_source)
 
-      {:noreply, socket}
+      updated_signature =
+        get_system_signatures(source_system.id)
+        |> Enum.find(fn sig -> sig.eve_id == signature_eve_id end)
+
+      {:reply, %{signature: updated_signature}, socket}
     else
       _ ->
         {:noreply, socket}

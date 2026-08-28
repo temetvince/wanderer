@@ -192,6 +192,14 @@ defmodule WandererAppWeb.MapsLive do
             {"Members", "add_system"},
             {"Administrators", "admin_map"},
             {"Managers", "manage_map"}
+          ],
+          auto_label_format_options: [
+            {"Disabled", "disabled"},
+            {"Numeric index (1, 2, 3)", "index"},
+            {"Letter index (A, B, C)", "index_letter"},
+            {"Numeric chain (1, 11, 121)", "chain_index"},
+            {"Letter chain (A, A1, A21)", "chain_index_letters"},
+            {"Letter-only chain (A, AA, ABA)", "chain_letters_only"}
           ]
         )
         |> allow_upload(:settings,
@@ -574,7 +582,14 @@ defmodule WandererAppWeb.MapsLive do
         "show_temp_system_name",
         "restrict_offline_showing",
         "allowed_copy_for",
-        "allowed_paste_for"
+        "allowed_paste_for",
+        "auto_label_jumped_label",
+        "auto_label_jumped_tag",
+        "auto_label_jumped_temp_name",
+        "auto_label_start_at_zero",
+        "auto_label_ignore_return_hole",
+        "auto_label_return_hole_symbol",
+        "auto_label_separator"
       ])
 
     {:ok, updated_map} = WandererApp.MapRepo.update_options(map, options)

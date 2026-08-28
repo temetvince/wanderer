@@ -2,16 +2,14 @@ import {
   SignatureGroupContent,
   SignatureGroupSelect,
 } from '@/hooks/Mapper/components/mapRootContent/components/SignatureSettings/components';
-import { getSystemClassGroup } from '@/hooks/Mapper/components/map/helpers/getSystemClassGroup.ts';
 import { SystemsSettingsProvider } from '@/hooks/Mapper/components/mapRootContent/components/SignatureSettings/Provider.tsx';
 import { WdButton } from '@/hooks/Mapper/components/ui-kit';
-import { handleAutoBookmark } from '@/hooks/Mapper/helpers/bookmarkFormatHelper.ts';
 import { parseSignatureCustomInfo } from '@/hooks/Mapper/helpers/parseSignatureCustomInfo';
 import { useMapRootState } from '@/hooks/Mapper/mapRootProvider';
 import { MassState, OutCommand, SignatureGroup, SystemSignature, TimeStatus } from '@/hooks/Mapper/types';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Controller, FormProvider, useForm } from 'react-hook-form';
 
 type SystemSignaturePrepared = Omit<SystemSignature, 'linked_system'> & {
@@ -30,22 +28,11 @@ export interface MapSettingsProps {
 }
 
 export const SignatureSettings = ({ systemId, show, onHide, signatureData }: MapSettingsProps) => {
-  const {
-    outCommand,
-    data: { systemSignatures, systems, wormholesData },
-  } = useMapRootState();
+  const { outCommand } = useMapRootState();
 
   const handleShow = async () => {};
 
   const signatureForm = useForm<Partial<SystemSignaturePrepared>>({});
-
-  const [userSettings, setUserSettings] = useState<any>(null);
-
-  useEffect(() => {
-    outCommand({ type: OutCommand.getUserSettings, data: null })
-      .then((res: any) => setUserSettings(res?.user_settings))
-      .catch((e: any) => console.warn('Failed to fetch user settings', e));
-  }, [outCommand]);
 
   const handleSave = useCallback(
     // TODO: need fix
@@ -122,45 +109,6 @@ export const SignatureSettings = ({ systemId, show, onHide, signatureData }: Map
       // Note: despite groups have optional type - this will always set
       out = { ...out, group: group! };
 
-      if (group === SignatureGroup.Wormhole) {
-        let targetSystem = null;
-        if (values.linked_system) {
-          targetSystem = systems.find((s: any) => s.system_static_info?.solar_system_id?.toString() === values.linked_system);
-        }
-
-        let targetSystemClassGroup = null;
-        if (targetSystem?.system_static_info) {
-          targetSystemClassGroup = getSystemClassGroup(targetSystem.system_static_info.system_class);
-        }
-
-        const targetSystemUuid = targetSystem?.id;
-
-        let targetSolarSystemIdStr = values.linked_system;
-        if (targetSystem?.system_static_info?.solar_system_id) {
-          targetSolarSystemIdStr = targetSystem.system_static_info.solar_system_id.toString();
-        }
-
-        const currentSystem = systems.find((s: any) => s.id === systemId);
-
-        let solarSystemIdStr = systemId;
-        if (currentSystem?.system_static_info?.solar_system_id) {
-          solarSystemIdStr = currentSystem.system_static_info.solar_system_id.toString();
-        }
-
-        const { updatedSignature } = await handleAutoBookmark(
-          out,
-          userSettings,
-          systemSignatures,
-          systemId,
-          solarSystemIdStr,
-          wormholesData,
-          targetSystemClassGroup,
-          targetSystemUuid,
-          targetSolarSystemIdStr,
-        );
-        out = updatedSignature;
-      }
-
       await outCommand({
         type: OutCommand.updateSignatures,
         data: {
@@ -189,17 +137,7 @@ export const SignatureSettings = ({ systemId, show, onHide, signatureData }: Map
       signatureForm.reset();
       onHide();
     },
-    [
-      signatureData,
-      signatureForm,
-      outCommand,
-      systemId,
-      onHide,
-      systemSignatures,
-      systems,
-      wormholesData,
-      userSettings,
-    ],
+    [signatureData, signatureForm, outCommand, systemId, onHide],
   );
 
   useEffect(() => {

@@ -74,6 +74,10 @@ export const SIGNATURES_CHECKBOXES_PROPS: SettingsListItem[] = [
   },
 ];
 
+// Auto-labeling of jumped systems (temporary names, tags, custom labels,
+// return-hole handling) is configured per-map in the map settings by admins
+// and applied server-side for all users. Only clipboard-related preferences
+// remain per-user here.
 export const BOOKMARKS_SETTINGS_PROPS: SettingsListItem[] = [
   {
     prop: UserSettingsRemoteProps.bookmark_auto_copy,
@@ -82,37 +86,8 @@ export const BOOKMARKS_SETTINGS_PROPS: SettingsListItem[] = [
   },
   {
     prop: UserSettingsRemoteProps.bookmark_wormholes_start_at_zero,
-    label: 'Start wormhole indices at 0',
+    label: 'Start wormhole indices at 0 (match the map setting)',
     type: 'checkbox',
-  },
-  {
-    prop: UserSettingsRemoteProps.bookmark_return_hole_ignore,
-    label: 'Ignore return hole when creating indexes',
-    type: 'checkbox',
-  },
-  {
-    prop: UserSettingsRemoteProps.bookmark_return_hole_symbol,
-    label: 'Return hole symbol (use space for empty)',
-    type: 'text',
-    dependsOn: UserSettingsRemoteProps.bookmark_return_hole_ignore,
-  },
-  {
-    prop: UserSettingsRemoteProps.bookmark_auto_temp_name,
-    label: 'Auto-fill wormhole temporary name',
-    type: 'dropdown',
-    options: AUTO_FORMAT_OPTIONS,
-  },
-  {
-    prop: UserSettingsRemoteProps.system_auto_tag,
-    label: 'Auto-tag jumped system',
-    type: 'dropdown',
-    options: AUTO_FORMAT_OPTIONS,
-  },
-  {
-    prop: UserSettingsRemoteProps.system_custom_label_name,
-    label: 'Auto-label jumped system',
-    type: 'dropdown',
-    options: AUTO_FORMAT_OPTIONS,
   },
 ];
 
