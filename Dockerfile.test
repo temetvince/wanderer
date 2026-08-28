@@ -1,0 +1,23 @@
+ARG BUILDER_IMAGE="wandererltd/build-base:latest"
+
+FROM ${BUILDER_IMAGE}
+
+WORKDIR /app
+
+ENV MIX_ENV="test"
+
+COPY mix.exs mix.lock ./
+RUN mix deps.get
+
+COPY config config
+COPY priv priv
+COPY lib lib
+COPY assets assets
+COPY test test
+
+RUN mix compile
+
+# Run with a postgres reachable on localhost, e.g.:
+#   docker run -d --name wanderer-pg -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:16
+#   docker run --rm --network container:wanderer-pg wanderer-test
+CMD ["mix", "test"]
