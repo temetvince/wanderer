@@ -115,7 +115,12 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
   defp assign_label(map_id, source_system, target_system, signature, enabled_targets, separator, start_at_zero) do
     {primary_kind, primary_format} = List.first(enabled_targets)
 
-    prefix = effective_value(source_system, primary_kind)
+    # A source system's label only acts as a chain prefix when that system is
+    # itself a chain child. A root system with a custom name (e.g. a home
+    # labeled "HTT") starts a fresh chain, so its holes get A, B, C - not
+    # "HTTA".
+    chain_child? = chain_child?(map_id, source_system)
+    prefix = if chain_child?, do: effective_value(source_system, primary_kind), else: ""
 
     index =
       case AutoLabel.parse_slot(
@@ -150,7 +155,13 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     # of that kind), so e.g. tags chain off tags and labels off labels.
     rendered =
       Map.new(enabled_targets, fn {kind, format} ->
-        kind_prefix = if kind == primary_kind, do: prefix, else: effective_value(source_system, kind)
+        kind_prefix =
+          cond do
+            kind == primary_kind -> prefix
+            chain_child? -> effective_value(source_system, kind)
+            true -> ""
+          end
+
         {kind, AutoLabel.render(format, index, kind_prefix, separator, start_at_zero)}
       end)
 
@@ -258,6 +269,25 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     end
 
     :ok
+  end
+
+  # A system is a chain child when some signature on this map links to it
+  # carrying chain metadata (bookmark_index) - which the server writes on
+  # every labeled jump. A home or staging system never qualifies: nothing
+  # links into it except return holes, whose bookmark_index is deliberately
+  # stripped. Renames don't affect this - metadata only answers "is this part
+  # of a chain", while the current label supplies the prefix text.
+  defp chain_child?(map_id, source_system) do
+    {:ok, systems} = WandererApp.Map.list_systems(map_id)
+    map_system_ids = MapSet.new(systems, & &1.id)
+
+    source_system.solar_system_id
+    |> MapSystemSignature.by_linked_system_id!()
+    |> Enum.any?(fn sig ->
+      not sig.deleted and
+        MapSet.member?(map_system_ids, sig.system_id) and
+        sig |> decode_custom_info() |> Map.has_key?("bookmark_index")
+    end)
   end
 
   defp effective_value(system, :label) do
