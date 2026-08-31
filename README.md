@@ -15,7 +15,10 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   server when a signature is linked, for every user, configured per map in
   **Map Settings → General** (admins only). Occupied slots are derived from the
   labels currently on the map, so manual renames are respected: renaming `B` to
-  `C` frees the `B` slot and blocks `C` at that depth. Existing labels are never
+  `C` frees the `B` slot and blocks `C` at that depth. A named root such as a
+  home system labeled `HTT` starts a fresh chain (`A`, `B`, `C` - not `HTTA`):
+  a system's label only acts as a chain prefix when that system is itself a
+  chain child. Existing labels are never
   overwritten, return holes never consume a slot, and the
   "Show linked signature ID as custom label part" display option is unaffected.
   No database schema changes: everything lives in existing JSON columns, so
