@@ -51,26 +51,7 @@ defmodule WandererApp.Map.Routes do
     )
     |> case do
       {:ok, routes} ->
-        systems_static_data =
-          routes
-          |> Enum.map(fn route_info -> route_info.systems end)
-          |> List.flatten()
-          |> Enum.uniq()
-          |> Task.async_stream(
-            fn system_id ->
-              case WandererApp.CachedInfo.get_system_static_info(system_id) do
-                {:ok, nil} ->
-                  nil
-
-                {:ok, system} ->
-                  system |> Map.take(@minimum_route_attrs)
-              end
-            end,
-            max_concurrency: System.schedulers_online() * 4
-          )
-          |> Enum.map(fn {:ok, val} -> val end)
-
-        {:ok, %{routes: routes, systems_static_data: systems_static_data}}
+        {:ok, %{routes: routes, systems_static_data: routes_static_data(routes)}}
 
       _error ->
         {:ok, %{routes: [], systems_static_data: []}}
@@ -90,10 +71,74 @@ defmodule WandererApp.Map.Routes do
     {:ok, %{routes: routes, systems_static_data: []}}
   end
 
+  @doc """
+  Top-N alternative routes between one origin/destination pair, ranked
+  best-first, using the same connections/avoidance settings as `find/5`.
+  Strictly on-demand: no caching. Returns `{:ok, %{routes, systems_static_data}}`
+  with empty lists on any failure.
+  """
+  def find_alternatives(map_id, origin, destination, routes_settings) do
+    origin = origin |> String.to_integer()
+    destination = destination |> String.to_integer()
+    params = build_route_params(map_id, routes_settings)
+
+    case WandererApp.Esi.get_route_alternatives(origin, destination, params) do
+      {:ok, alternatives} when is_list(alternatives) ->
+        routes =
+          alternatives
+          |> Enum.map(&map_route_info/1)
+          |> Enum.filter(fn route_info -> not is_nil(route_info) end)
+
+        {:ok, %{routes: routes, systems_static_data: routes_static_data(routes)}}
+
+      error ->
+        @logger.warning(
+          "Error getting route alternatives for #{inspect(origin)} -> #{inspect(destination)}: #{inspect(error)}"
+        )
+
+        {:ok, %{routes: [], systems_static_data: []}}
+    end
+  end
+
+  defp routes_static_data(routes) do
+    routes
+    |> Enum.map(fn route_info -> route_info.systems end)
+    |> List.flatten()
+    |> Enum.uniq()
+    |> Task.async_stream(
+      fn system_id ->
+        case WandererApp.CachedInfo.get_system_static_info(system_id) do
+          {:ok, nil} ->
+            nil
+
+          {:ok, system} ->
+            system |> Map.take(@minimum_route_attrs)
+        end
+      end,
+      max_concurrency: System.schedulers_online() * 4
+    )
+    |> Enum.map(fn {:ok, val} -> val end)
+  end
+
   defp do_find_routes(map_id, origin, hubs, routes_settings) do
     origin = origin |> String.to_integer()
     hubs = hubs |> Enum.map(&(&1 |> String.to_integer()))
 
+    params = build_route_params(map_id, routes_settings)
+
+    {:ok, all_routes} = get_all_routes(hubs, origin, params)
+
+    routes =
+      all_routes
+      |> Enum.map(fn route_info ->
+        map_route_info(route_info)
+      end)
+      |> Enum.filter(fn route_info -> not is_nil(route_info) end)
+
+    {:ok, routes}
+  end
+
+  defp build_route_params(map_id, routes_settings) do
     routes_settings = @default_routes_settings |> Map.merge(routes_settings)
 
     connections =
@@ -200,24 +245,12 @@ defmodule WandererApp.Map.Routes do
       |> List.flatten()
       |> Enum.uniq()
 
-    params =
-      %{
-        datasource: "tranquility",
-        flag: routes_settings.path_type,
-        connections: connections,
-        avoid: avoidance_list
-      }
-
-    {:ok, all_routes} = get_all_routes(hubs, origin, params)
-
-    routes =
-      all_routes
-      |> Enum.map(fn route_info ->
-        map_route_info(route_info)
-      end)
-      |> Enum.filter(fn route_info -> not is_nil(route_info) end)
-
-    {:ok, routes}
+    %{
+      datasource: "tranquility",
+      flag: routes_settings.path_type,
+      connections: connections,
+      avoid: avoidance_list
+    }
   end
 
   defp get_all_routes(hubs, origin, params, opts \\ []) do
@@ -320,13 +353,15 @@ defmodule WandererApp.Map.Routes do
          %{origin: origin, destination: destination, systems: result_systems, success: success} =
            _route_info
        ) do
+    # The route service returns origin as a number on some endpoints and a
+    # string on others; compare loosely so the origin is always stripped.
     systems =
       case result_systems do
         [] ->
           []
 
         _ ->
-          result_systems |> Enum.reject(fn system_id -> system_id == origin end)
+          result_systems |> Enum.reject(fn system_id -> to_string(system_id) == to_string(origin) end)
       end
 
     %{

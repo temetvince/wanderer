@@ -10,11 +10,13 @@ import {
 } from '@/hooks/Mapper/components/ui-kit';
 import { useLoadSystemStatic } from '@/hooks/Mapper/mapRootProvider/hooks/useLoadSystemStatic.ts';
 
-import { forwardRef, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, Fragment, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import classes from './RoutesWidget.module.scss';
 import { RoutesList } from './RoutesList';
 import clsx from 'clsx';
 import { Route } from '@/hooks/Mapper/types/routes.ts';
+import { SolarSystemStaticInfoRaw } from '@/hooks/Mapper/types/system.ts';
+import { OutCommand } from '@/hooks/Mapper/types/mapHandlers.ts';
 import { PrimeIcons } from 'primereact/api';
 import { RoutesSettingsDialog } from './RoutesSettingsDialog';
 import { RoutesProvider, useRouteProvider } from './RoutesProvider.tsx';
@@ -39,14 +41,26 @@ const sortByDist = (a: Route, b: Route) => {
 
 export const RoutesWidgetContent = () => {
   const {
+    outCommand,
     data: { selectedSystems, systems, isSubscriptionActive },
   } = useMapRootState();
-  const { hubs = [], routesList, isRestricted, loading, nohubsPlaceholder } = useRouteProvider();
+  const { hubs = [], routesList, isRestricted, loading, nohubsPlaceholder, data: routesSettings } = useRouteProvider();
 
   const [systemId] = selectedSystems;
 
   const { systems: systemStatics, loadSystems } = useLoadSystemStatic({ systems: hubs ?? [] });
   const { open, ...systemCtxProps } = useContextMenuSystemInfoHandlers();
+
+  // Alternative routes fetched lazily per destination when a row is expanded.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [alternatives, setAlternatives] = useState<Record<string, 'loading' | Route[]>>({});
+  const [altStatics, setAltStatics] = useState<SolarSystemStaticInfoRaw[]>([]);
+
+  const staticsById = useMemo(() => {
+    const byId = new Map<number, SolarSystemStaticInfoRaw>();
+    [...(routesList?.systems_static_data ?? []), ...altStatics].forEach(s => s && byId.set(s.solar_system_id, s));
+    return byId;
+  }, [routesList?.systems_static_data, altStatics]);
 
   const preparedRoutes: Route[] = useMemo(() => {
     return (
@@ -55,22 +69,65 @@ export const RoutesWidgetContent = () => {
         // .filter(x => x.destination.toString() !== systemId)
         .map(route => ({
           ...route,
-          mapped_systems:
-            route.systems?.map(solar_system_id =>
-              routesList?.systems_static_data.find(
-                system_static_data => system_static_data.solar_system_id === solar_system_id,
-              ),
-            ) ?? [],
+          mapped_systems: route.systems?.map(solar_system_id => staticsById.get(solar_system_id)) ?? [],
         })) ?? []
     );
-  }, [routesList?.routes, routesList?.systems_static_data, systemId]);
+  }, [routesList?.routes, staticsById, systemId]);
 
-  const refData = useRef({ open, loadSystems, preparedRoutes });
-  refData.current = { open, loadSystems, preparedRoutes };
+  const refData = useRef({ open, loadSystems, preparedRoutes, expanded, alternatives, outCommand, routesSettings, systemId });
+  refData.current = { open, loadSystems, preparedRoutes, expanded, alternatives, outCommand, routesSettings, systemId };
 
   useEffect(() => {
     (async () => await refData.current.loadSystems(hubs))();
   }, [hubs]);
+
+  // Alternatives are only valid for the origin/settings they were computed
+  // with - drop them when either changes.
+  useEffect(() => {
+    setExpanded(new Set());
+    setAlternatives({});
+    setAltStatics([]);
+  }, [systemId, routesSettings]);
+
+  const handleToggleAlternatives = useCallback(async (destination: string) => {
+    const current = refData.current;
+    const next = new Set(current.expanded);
+
+    if (next.has(destination)) {
+      next.delete(destination);
+      setExpanded(next);
+      return;
+    }
+
+    next.add(destination);
+    setExpanded(next);
+
+    if (current.alternatives[destination] != null) {
+      return;
+    }
+
+    setAlternatives(prev => ({ ...prev, [destination]: 'loading' }));
+
+    try {
+      const resp = (await current.outCommand({
+        type: OutCommand.getRouteAlternatives,
+        data: {
+          system_id: current.systemId,
+          destination_id: destination,
+          routes_settings: current.routesSettings,
+        },
+      })) as { routes?: Route[]; systems_static_data?: SolarSystemStaticInfoRaw[] };
+
+      setAlternatives(prev => ({ ...prev, [destination]: resp?.routes ?? [] }));
+
+      if (resp?.systems_static_data?.length) {
+        setAltStatics(prev => [...prev, ...(resp.systems_static_data ?? []).filter(Boolean)]);
+      }
+    } catch (err) {
+      console.warn('Failed to load route alternatives', err);
+      setAlternatives(prev => ({ ...prev, [destination]: [] }));
+    }
+  }, []);
 
   const handleClick = useCallback((e: MouseEvent, systemId: string) => {
     const route = refData.current.preparedRoutes.find(x => x.destination.toString() === systemId);
@@ -117,35 +174,91 @@ export const RoutesWidgetContent = () => {
       <LoadingWrapper loading={loading}>
         <div className={clsx(classes.RoutesGrid, 'px-2 py-2')}>
           {preparedRoutes.map(route => {
-            // TODO do not delete this console log
-            // eslint-disable-next-line no-console
-            // console.log('JOipP', `Check sys [${route.destination}]:`, sys);
+            const destKey = route.destination.toString();
+            const isExpanded = expanded.has(destKey);
+            const altState = alternatives[destKey];
+
+            // The reply's first route is rank #1 (usually the shown one);
+            // only the ranks after it are alternatives.
+            const altRoutes =
+              Array.isArray(altState) && altState.length > 1
+                ? altState.slice(1).map(alt => ({
+                    ...alt,
+                    mapped_systems: alt.systems?.map(solar_system_id => staticsById.get(solar_system_id)) ?? [],
+                  }))
+                : [];
 
             return (
-              <>
+              <Fragment key={destKey}>
                 <div className="flex gap-2 items-center">
                   <WdImgButton
                     className={clsx(PrimeIcons.BARS, classes.RemoveBtn)}
-                    onClick={e => handleClick(e, route.destination.toString())}
+                    onClick={e => handleClick(e, destKey)}
                     tooltip={{
                       content: 'Click here to open system menu',
                       position: TooltipPosition.top,
                       offset: 10,
                     }}
                   />
+                  {route.has_connection && (
+                    <WdImgButton
+                      className={clsx(isExpanded ? PrimeIcons.ANGLE_DOWN : PrimeIcons.ANGLE_RIGHT, classes.RemoveBtn)}
+                      onClick={() => handleToggleAlternatives(destKey)}
+                      tooltip={{
+                        content: 'Show alternative routes',
+                        position: TooltipPosition.top,
+                        offset: 10,
+                      }}
+                    />
+                  )}
                   <SystemView
-                    systemId={route.destination.toString()}
+                    systemId={destKey}
                     className={clsx('select-none text-center cursor-context-menu')}
                     hideRegion
                     compact
                     showCustomName
                   />
                 </div>
-                <div className="text-right pl-1">{route.has_connection ? (route.systems?.length ?? 2) : ''}</div>
+                <div
+                  className={clsx('text-right pl-1', route.has_connection && 'cursor-pointer')}
+                  onClick={route.has_connection ? () => handleToggleAlternatives(destKey) : undefined}
+                >
+                  {route.has_connection ? (route.systems?.length ?? 2) : ''}
+                </div>
                 <div className="pl-2 pb-0.5">
                   <RoutesList data={route} onContextMenu={handleContextMenu} />
                 </div>
-              </>
+
+                {isExpanded && altState === 'loading' && (
+                  <>
+                    <div />
+                    <div />
+                    <div className="pl-2 pb-0.5 text-stone-400">
+                      <i className="pi pi-spin pi-spinner mr-1 text-[10px]" />
+                      Loading alternatives...
+                    </div>
+                  </>
+                )}
+
+                {isExpanded && Array.isArray(altState) && altRoutes.length === 0 && (
+                  <>
+                    <div />
+                    <div />
+                    <div className="pl-2 pb-0.5 text-stone-400 select-none">No alternative routes</div>
+                  </>
+                )}
+
+                {isExpanded &&
+                  altRoutes.map((alt, idx) => (
+                    <Fragment key={`${destKey}-alt-${idx}`}>
+                      <div className="text-right text-stone-400 select-none pr-1">#{idx + 2}</div>
+                      <div className="text-right pl-1 text-stone-400">{alt.systems?.length ?? ''}</div>
+                      <div className="pl-2 pb-0.5">
+                        <RoutesList data={alt} onContextMenu={handleContextMenu} />
+                      </div>
+                    </Fragment>
+                  ))}
+              </Fragment>
             );
           })}
         </div>
@@ -205,14 +318,14 @@ export const RoutesWidgetComp = ({ title, renderContent }: RoutesWidgetCompProps
               />
             )}
 
-            <WdTooltipWrapper content="Show shortest route" position={TooltipPosition.top}>
+            <WdTooltipWrapper content="Prefer high-sec routes" position={TooltipPosition.top}>
               <WdCheckbox
                 size="xs"
                 labelSide="left"
-                label={compact ? '' : 'Show shortest'}
-                value={!isSecure}
+                label={compact ? '' : 'Prefer safest'}
+                value={isSecure}
                 onChange={handleSecureChange}
-                classNameLabel="text-red-400 whitespace-nowrap"
+                classNameLabel="whitespace-nowrap"
               />
             </WdTooltipWrapper>
             <WdImgButton

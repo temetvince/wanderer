@@ -239,6 +239,7 @@ export enum OutCommand {
   deleteUserHub = 'delete_user_hub',
   getRoutes = 'get_routes',
   getUserRoutes = 'get_user_routes',
+  getRouteAlternatives = 'get_route_alternatives',
   getRoutesBy = 'get_routes_by',
   getCharacterJumps = 'get_character_jumps',
   getStructures = 'get_structures',
