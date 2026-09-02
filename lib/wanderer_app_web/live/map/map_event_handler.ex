@@ -110,7 +110,6 @@ defmodule WandererAppWeb.MapEventHandler do
     "get_routes",
     "get_routes_by",
     "get_user_routes",
-    "get_route_alternatives",
     "set_autopilot_waypoint",
     "add_hub",
     "delete_hub",
