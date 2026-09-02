@@ -59,7 +59,9 @@ default, state it, and move on.
 
 ### Docs ship with the change
 
-Update the README (and this file, when the way of working changes) in the same commit as the code. Markdown
+Update the README (and this file, when the way of working changes) in the same commit as the code, and add
+an entry to `FORK_CHANGELOG.md` for every user-visible or behavioral fork change — it records only
+fork-vs-upstream differences, newest first; upstream's own `CHANGELOG.md` is never touched. Markdown
 in **all** repositories (this one and eve-route-builder) must pass `.markdownlint.json` at the repo root:
 120-character lines, compact tables, default rules otherwise. Write docs in present tense — describe what the
 code does now, never what changed or how it used to work; history lives in git. New public Elixir modules get
