@@ -119,7 +119,7 @@ export const WIDGETS_CHECKBOXES_PROPS: WidgetsCheckboxesType = [
   },
   {
     id: WidgetsIds.routes,
-    label: 'Routes',
+    label: 'Shared Routes',
   },
   {
     id: WidgetsIds.routesBy,
