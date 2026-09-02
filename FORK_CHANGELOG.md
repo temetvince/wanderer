@@ -36,7 +36,6 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
   in Map Settings → General. Chain state derives from the labels currently on the map, so manual renames
   are respected (renaming `B` to `C` frees `B` and blocks `C`). Includes a new "Letter-only chain" format,
   return-hole handling, an optional chain separator, and per-map serialization. No database schema changes.
-- Sidebar links to Astral Aide and SeAT.
 - `Dockerfile.test` (+ its dockerignore) for running the Elixir test suite in Docker.
 - `deploy/` assets: daily `update.sh` (mirror fork, rebase onto upstream with safe fallback, rebuild,
   restart), compose override (custom images, wanderer port unpublished, Caddy proxied to the container over
