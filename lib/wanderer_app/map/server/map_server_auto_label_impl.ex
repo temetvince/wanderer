@@ -272,6 +272,24 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     :ok
   end
 
+  @doc """
+  Strips bookmark artifacts from a signature: the temporary name and the
+  chain metadata in custom_info. Called when the system the signature pointed
+  at is removed from the map, so bookmarks never outlive their hole. Other
+  custom_info (time status, mass status, k162 type) is preserved.
+  """
+  def clear_bookmark_data(signature) do
+    custom_info =
+      signature
+      |> decode_custom_info()
+      |> Map.drop(["bookmark_index", "bookmark_index_chained", "bookmark_index_chained_letters"])
+
+    MapSystemSignature.update(signature, %{
+      custom_info: Jason.encode!(custom_info),
+      temporary_name: nil
+    })
+  end
+
   # Wires AutoLabel.chain_prefix/7 to this map's data: labels come from the
   # map cache, parents are systems whose non-deleted signature on this map
   # links into the given system carrying chain metadata (bookmark_index).
