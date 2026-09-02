@@ -56,7 +56,7 @@ export const WRoutesPublic = () => {
   return (
     <RoutesWidget
       ref={ref}
-      title="Routes"
+      title="Shared Routes"
       data={settingsRoutes}
       loading={loadingPublicRoutes}
       update={settingsRoutesUpdate}
