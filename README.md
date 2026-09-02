@@ -28,8 +28,6 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
 - **Route widget wording.** The "Routes" widget is renamed "Shared Routes" (its hubs are shared map state,
   unlike User Routes), and the old "Show shortest" checkbox is now "Prefer safest" (checked = prefer
   high-sec, unchecked = shortest).
-- **Sidebar links** to [Astral Aide](https://astralaide.com) and
-  [SeAT](https://seat.astralaide.com).
 - **`Dockerfile.test`** for running the Elixir test suite in Docker (see below).
 
 The companion fork [temetvince/eve-route-builder](https://github.com/temetvince/eve-route-builder)
