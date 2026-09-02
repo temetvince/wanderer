@@ -96,6 +96,14 @@ defmodule WandererApp.Map.AutoLabelTest do
       assert :error = AutoLabel.parse_slot("chain_index_letters", nil, "A", "", false)
     end
 
+    test "letter slots cap at two letters, so names never parse as slots" do
+      assert {:ok, 702} = AutoLabel.parse_slot("chain_index_letters", "ZZ", "", "", false)
+      assert :error = AutoLabel.parse_slot("chain_index_letters", "HTT", "", "", false)
+      assert :error = AutoLabel.parse_slot("chain_letters_only", "STAGING", "", "", false)
+      assert :error = AutoLabel.parse_slot("index_letter", "HOME", "", "", false)
+      assert :error = AutoLabel.parse_slot("chain_letters_only", "AAAAB", "A", "", false)
+    end
+
     test "prefix match is case-insensitive" do
       assert {:ok, 2} = AutoLabel.parse_slot("chain_index_letters", "a2", "A", "", false)
     end
@@ -121,6 +129,67 @@ defmodule WandererApp.Map.AutoLabelTest do
         assert {:ok, ^index} = AutoLabel.parse_slot(format, label, parse_prefix, "", false),
                "#{format} failed round trip: prefix=#{prefix} index=#{index} label=#{label}"
       end
+    end
+  end
+
+  describe "chain_prefix/7" do
+    # Graph fixture: labels and chain-parent edges (parent -> child via a
+    # chain-carrying signature). `chain_prefix` walks parents upward.
+    defp prefix(system, labels, parents, format \\ "chain_index_letters") do
+      AutoLabel.chain_prefix(
+        system,
+        fn sys -> Map.get(labels, sys, "") end,
+        fn sys -> Map.get(parents, sys, []) end,
+        format,
+        "",
+        false
+      )
+    end
+
+    test "a named root with a stale chain signature into it stays a root" do
+      # Home "HTT" has a legacy return-hole signature from A carrying
+      # bookmark_index (the poisoning scenario), and home -> A is a real
+      # chain edge - a cycle. "HTT" parses under no parent's namespace.
+      labels = %{home: "HTT", a: "A"}
+      parents = %{home: [:a], a: [:home]}
+
+      assert prefix(:home, labels, parents) == ""
+      assert prefix(:a, labels, parents) == "A"
+    end
+
+    test "depth-one systems chain off the root, including after renames" do
+      labels = %{home: "HTT", c: "C"}
+      parents = %{c: [:home]}
+
+      # Home is a root (prefix ""), so "C" parses as a root slot: chain child.
+      assert prefix(:c, labels, parents) == "C"
+    end
+
+    test "deeper chain nodes parse under their parent's label" do
+      labels = %{home: "HTT", a: "A", a2: "A2"}
+      parents = %{a: [:home], a2: [:a]}
+
+      assert prefix(:a2, labels, parents) == "A2"
+    end
+
+    test "a named mid-map system with no valid parent namespace is a root" do
+      labels = %{staging: "STAGING", a: "A"}
+      parents = %{staging: [:a], a: []}
+
+      assert prefix(:staging, labels, parents) == ""
+    end
+
+    test "unlabeled systems are roots" do
+      assert prefix(:x, %{}, %{x: [:y]}) == ""
+    end
+
+    test "letter-only chains resolve the same way" do
+      labels = %{home: "HTT", a: "A", aa: "AA"}
+      parents = %{home: [:a], a: [:home], aa: [:a]}
+
+      assert prefix(:home, labels, parents, "chain_letters_only") == ""
+      assert prefix(:a, labels, parents, "chain_letters_only") == "A"
+      assert prefix(:aa, labels, parents, "chain_letters_only") == "AA"
     end
   end
 
