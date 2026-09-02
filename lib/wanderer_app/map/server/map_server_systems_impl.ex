@@ -447,45 +447,56 @@ defmodule WandererApp.Map.Server.SystemsImpl do
         try do
           {:ok, %{eve_id: eve_id, system: system}} = sig |> Ash.load([:system])
 
-          # Clear the linked_system_id instead of destroying the signature
-          # Use the wrapper to log unlink operations
-          case SignaturesImpl.update_signature_linked_system(sig, %{
-                 linked_system_id: nil
-               }) do
-            {:ok, updated_sig} ->
-              # A removed hole takes its bookmarks with it: strip the
-              # temporary name and chain metadata, not just the link. Scoped
-              # to this map's own signatures (by_linked_system_id is global
-              # across maps).
-              if not is_nil(system) and system.map_id == map_id do
-                WandererApp.Map.Server.AutoLabelImpl.clear_bookmark_data(updated_sig)
-              end
+          # A removed hole takes its signatures with it: rows on this map
+          # that pointed at the removed system are deleted outright, bookmarks
+          # and all - if the hole still exists in space, the next scan paste
+          # re-adds it fresh. Scoped to this map's own signatures
+          # (by_linked_system_id is global across maps); other maps keep the
+          # upstream unlink-only behavior below.
+          if not is_nil(system) and system.map_id == map_id do
+            WandererApp.Api.MapSystemSignature.destroy!(sig)
 
-              case system do
-                nil ->
-                  Logger.debug(fn ->
-                    "[cleanup_linked_signatures] signature #{eve_id} unlinked (parent system already deleted)"
-                  end)
+            Logger.debug(fn ->
+              "[cleanup_linked_signatures] removed signature #{eve_id} in system #{system.solar_system_id} (linked system deleted)"
+            end)
 
-                %{solar_system_id: solar_system_id} ->
-                  Logger.debug(fn ->
-                    "[cleanup_linked_signatures] unlinked signature #{eve_id} in system #{solar_system_id}"
-                  end)
+            WandererApp.ExternalEvents.broadcast(map_id, :signature_removed, %{
+              solar_system_id: system.solar_system_id,
+              signature_id: eve_id
+            })
+          else
+            # Clear the linked_system_id instead of destroying the signature
+            # Use the wrapper to log unlink operations
+            case SignaturesImpl.update_signature_linked_system(sig, %{
+                   linked_system_id: nil
+                 }) do
+              {:ok, _updated_sig} ->
+                case system do
+                  nil ->
+                    Logger.debug(fn ->
+                      "[cleanup_linked_signatures] signature #{eve_id} unlinked (parent system already deleted)"
+                    end)
 
-                  # Audit logging for cascade unlink (no user/character context)
-                  WandererApp.User.ActivityTracker.track_map_event(:signatures_unlinked, %{
-                    character_id: nil,
-                    user_id: nil,
-                    map_id: map_id,
-                    solar_system_id: solar_system_id,
-                    signatures: [eve_id]
-                  })
-              end
+                  %{solar_system_id: solar_system_id} ->
+                    Logger.debug(fn ->
+                      "[cleanup_linked_signatures] unlinked signature #{eve_id} in system #{solar_system_id}"
+                    end)
 
-            {:error, error} ->
-              Logger.error(
-                "[cleanup_linked_signatures] Failed to unlink signature #{sig.eve_id}: #{inspect(error)}"
-              )
+                    # Audit logging for cascade unlink (no user/character context)
+                    WandererApp.User.ActivityTracker.track_map_event(:signatures_unlinked, %{
+                      character_id: nil,
+                      user_id: nil,
+                      map_id: map_id,
+                      solar_system_id: solar_system_id,
+                      signatures: [eve_id]
+                    })
+                end
+
+              {:error, error} ->
+                Logger.error(
+                  "[cleanup_linked_signatures] Failed to unlink signature #{sig.eve_id}: #{inspect(error)}"
+                )
+            end
           end
         rescue
           e ->
