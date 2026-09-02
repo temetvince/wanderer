@@ -73,23 +73,6 @@ defmodule WandererApp.Esi.ApiClient do
         |> Keyword.merge(@timeout_opts)
       )
 
-  def get_route_alternatives(origin, destination, params, count \\ 3),
-    do:
-      do_post(
-        "#{get_custom_route_base_url()}/route/alternatives",
-        [
-          json: %{
-            origin: origin,
-            destination: destination,
-            flag: params.flag,
-            connections: params.connections,
-            avoid: params.avoid,
-            count: count
-          }
-        ]
-        |> Keyword.merge(@timeout_opts)
-      )
-
   def get_routes_eve(hubs, origin, _params, _opts),
     do:
       {:ok,
