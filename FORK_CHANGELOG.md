@@ -6,6 +6,13 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
 
 ## 2026-09-02
 
+### Fixed
+
+- Auto-labeling root detection is label-consistent and recursive: a system only acts as a chain prefix when
+  its label parses as a slot in its parent's namespace. Stale legacy signatures carrying chain metadata into
+  a named home (from the pre-fork client-side labeling era) could previously mark the home as a chain child
+  again, producing labels like `HTTA`.
+
 ### Changed
 
 - The "Routes" widget is renamed "Shared Routes" in user-facing strings (widget title and widget picker);
