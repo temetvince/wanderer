@@ -452,15 +452,7 @@ defmodule WandererApp.Map.Server.SystemsImpl do
           case SignaturesImpl.update_signature_linked_system(sig, %{
                  linked_system_id: nil
                }) do
-            {:ok, updated_sig} ->
-              # A removed hole takes its bookmarks with it: strip the
-              # temporary name and chain metadata, not just the link. Scoped
-              # to this map's own signatures (by_linked_system_id is global
-              # across maps).
-              if not is_nil(system) and system.map_id == map_id do
-                WandererApp.Map.Server.AutoLabelImpl.clear_bookmark_data(updated_sig)
-              end
-
+            {:ok, _updated_sig} ->
               case system do
                 nil ->
                   Logger.debug(fn ->
