@@ -169,8 +169,8 @@ defmodule WandererAppWeb.MapRoutesEventHandler do
   end
 
   # Top-3 alternative routes for one destination, fetched when the user
-  # expands a route row. Synchronous reply (the client awaits it) and
-  # deliberately uncached - it runs on demand for a single pair.
+  # expands a route row. Synchronous reply (the client awaits it); cached
+  # under the same params-hash scheme as the main route lists.
   def handle_ui_event(
         "get_route_alternatives",
         %{
