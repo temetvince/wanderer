@@ -116,12 +116,12 @@ defmodule WandererApp.Map.AutoLabel do
     do: parse_digits(String.trim(label))
 
   def parse_slot("index_letter", label, _prefix, _separator, start_at_zero),
-    do: letters_to_number(label, start_at_zero)
+    do: parse_letter_slot(label, start_at_zero)
 
   def parse_slot(format, label, "", _separator, start_at_zero) when format in @chain_formats do
     case format do
       "chain_index" -> parse_digits(String.trim(label))
-      _letter_rooted -> letters_to_number(label, start_at_zero)
+      _letter_rooted -> parse_letter_slot(label, start_at_zero)
     end
   end
 
@@ -136,7 +136,7 @@ defmodule WandererApp.Map.AutoLabel do
       rest = String.slice(label, prefix_len..-1//1)
 
       case format do
-        "chain_letters_only" -> letters_to_number(rest, start_at_zero)
+        "chain_letters_only" -> parse_letter_slot(rest, start_at_zero)
         _numeric_children -> parse_digits(rest)
       end
     else
@@ -145,6 +145,61 @@ defmodule WandererApp.Map.AutoLabel do
   end
 
   def parse_slot(_format, _label, _prefix, _separator, _start_at_zero), do: :error
+
+  # Letter slots are at most two letters (slot 702 is "ZZ"; no depth ever has
+  # more holes). Longer letter strings are names, not slots - this is what
+  # keeps "HTT" or "STAGING" from parsing as a chain slot and lets
+  # chain_prefix/7 tell named roots apart from chain children.
+  @max_letter_slot_length 2
+
+  defp parse_letter_slot(letters, start_at_zero) do
+    if String.length(String.trim(letters || "")) <= @max_letter_slot_length do
+      letters_to_number(letters, start_at_zero)
+    else
+      :error
+    end
+  end
+
+  @doc """
+  Resolves the chain prefix a system contributes to holes jumped from it:
+  its label when the system is a chain child, `""` when it is a root.
+
+  A system is a chain child only when its label parses as a slot under the
+  prefix of some parent (a system whose chain-carrying signature links into
+  it) - resolved recursively, so stale chain metadata pointing at a named
+  root (e.g. a legacy return-hole signature into a home labeled "HTT") can
+  never turn the root into a chain child: "HTT" parses under no parent's
+  namespace. Cycles resolve by treating the revisited system as a root.
+
+  `label_fn` returns a system's effective label; `parents_fn` returns the
+  systems whose chain-carrying signatures link into the given system.
+  """
+  def chain_prefix(system, label_fn, parents_fn, format, separator, start_at_zero, visited \\ MapSet.new()) do
+    label = label_fn.(system)
+
+    cond do
+      label in [nil, ""] ->
+        ""
+
+      MapSet.member?(visited, system) ->
+        ""
+
+      true ->
+        visited = MapSet.put(visited, system)
+
+        chain_child? =
+          system
+          |> parents_fn.()
+          |> Enum.any?(fn parent ->
+            parent_prefix =
+              chain_prefix(parent, label_fn, parents_fn, format, separator, start_at_zero, visited)
+
+            match?({:ok, _}, parse_slot(format, label, parent_prefix, separator, start_at_zero))
+          end)
+
+        if chain_child?, do: label, else: ""
+    end
+  end
 
   @doc """
   Returns the lowest free slot index given the occupied set (an Enumerable of
