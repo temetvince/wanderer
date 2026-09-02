@@ -128,6 +128,9 @@ is deliberately not published on the host.
 - Client-side labeling was removed on purpose; `assets/js/hooks/Mapper/helpers/bookmarkFormatHelper.ts` now
   only formats clipboard bookmark names from server-written `custom_info`. Do not reintroduce client-side
   label computation.
+- **Every new map UI event must be registered** in the matching `@..._ui_events` whitelist in
+  `lib/wanderer_app_web/live/map/map_event_handler.ex`, or it silently falls through to the default handler
+  and an awaiting client receives an empty reply. Adding the `handle_ui_event` clause alone is not enough.
 - eve-route-builder: `src/utils/dijkstra.ts` (search core + `secure` J-space rule) with reference-comparison
   tests in `src/utils/*.test.ts`. The committed `src/assets/graph.json` is the source of truth — the
   Dockerfile must **never** regenerate it during builds (the Fuzzwork CSV URLs 404 and `generateGraph` would
