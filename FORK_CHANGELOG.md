@@ -15,12 +15,6 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
 - Hardened the route origin-strip in `map_routes.ex` to compare system ids loosely (the route service
   returns the origin as a number on some endpoints and a string on others).
 
-### Removed
-
-- The top-3 alternative routes feature (expandable route rows backed by a k-shortest-paths endpoint), added
-  and removed the same day by owner preference. The implementation survives in git history
-  (`f4694135`/`9a081ee6`/`55bd4ef1`, reverted) if it is ever wanted again.
-
 ### Added
 
 - `AGENTS.md` working agreement, `.markdownlint.json` (all markdown must pass it), and this changelog.
