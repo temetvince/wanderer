@@ -74,14 +74,36 @@ defmodule WandererApp.Map.Routes do
   @doc """
   Top-N alternative routes between one origin/destination pair, ranked
   best-first, using the same connections/avoidance settings as `find/5`.
-  Strictly on-demand: no caching. Returns `{:ok, %{routes, systems_static_data}}`
-  with empty lists on any failure.
+  Cached like the main route lists: the key hashes the full params, so any
+  chain/settings change self-invalidates. Returns
+  `{:ok, %{routes, systems_static_data}}` with empty lists on any failure.
   """
   def find_alternatives(map_id, origin, destination, routes_settings) do
     origin = origin |> String.to_integer()
     destination = destination |> String.to_integer()
     params = build_route_params(map_id, routes_settings)
 
+    cache_key =
+      "route-alts-#{origin}-#{destination}-#{:crypto.hash(:sha, :erlang.term_to_binary(params))}"
+
+    case WandererApp.Cache.lookup(cache_key) do
+      {:ok, result} when not is_nil(result) ->
+        {:ok, result}
+
+      _ ->
+        result = fetch_alternatives(origin, destination, params)
+
+        # Failures return empty routes and are not cached, so a route-builder
+        # hiccup doesn't stick for the TTL.
+        if result.routes != [] do
+          WandererApp.Cache.insert(cache_key, result, ttl: @routes_ttl)
+        end
+
+        {:ok, result}
+    end
+  end
+
+  defp fetch_alternatives(origin, destination, params) do
     case WandererApp.Esi.get_route_alternatives(origin, destination, params) do
       {:ok, alternatives} when is_list(alternatives) ->
         routes =
@@ -89,14 +111,14 @@ defmodule WandererApp.Map.Routes do
           |> Enum.map(&map_route_info/1)
           |> Enum.filter(fn route_info -> not is_nil(route_info) end)
 
-        {:ok, %{routes: routes, systems_static_data: routes_static_data(routes)}}
+        %{routes: routes, systems_static_data: routes_static_data(routes)}
 
       error ->
         @logger.warning(
           "Error getting route alternatives for #{inspect(origin)} -> #{inspect(destination)}: #{inspect(error)}"
         )
 
-        {:ok, %{routes: [], systems_static_data: []}}
+        %{routes: [], systems_static_data: []}
     end
   end
 
