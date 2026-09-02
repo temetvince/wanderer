@@ -168,29 +168,6 @@ defmodule WandererAppWeb.MapRoutesEventHandler do
     end
   end
 
-  # Top-3 alternative routes for one destination, fetched when the user
-  # expands a route row. Synchronous reply (the client awaits it); cached
-  # under the same params-hash scheme as the main route lists.
-  def handle_ui_event(
-        "get_route_alternatives",
-        %{
-          "system_id" => solar_system_id,
-          "destination_id" => destination_id,
-          "routes_settings" => routes_settings
-        } = _event,
-        %{assigns: %{map_id: map_id, map_loaded?: true}} = socket
-      ) do
-    {:ok, result} =
-      WandererApp.Map.Routes.find_alternatives(
-        map_id,
-        solar_system_id,
-        destination_id,
-        get_routes_settings(routes_settings)
-      )
-
-    {:reply, result, socket}
-  end
-
   def handle_ui_event(
         "get_routes_by",
         %{"system_id" => solar_system_id, "routes_settings" => routes_settings} = event,
