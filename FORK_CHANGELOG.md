@@ -8,6 +8,10 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
 
 ### Fixed
 
+- Bookmarks no longer outlive their hole: when a system is removed from the map, the signatures that
+  linked to it lose their temporary name and chain metadata along with the link (upstream only cleared the
+  link, leaving stale bookmark labels in the signatures widget). Scan data and connection details (time and
+  mass status) are preserved.
 - Auto-labeling root detection is label-consistent and recursive: a system only acts as a chain prefix when
   its label parses as a slot in its parent's namespace. Stale legacy signatures carrying chain metadata into
   a named home (from the pre-fork client-side labeling era) could previously mark the home as a chain child
