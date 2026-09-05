@@ -191,6 +191,51 @@ defmodule WandererApp.Map.AutoLabelTest do
       assert prefix(:a, labels, parents, "chain_letters_only") == "A"
       assert prefix(:aa, labels, parents, "chain_letters_only") == "AA"
     end
+
+    test "a chain child whose entrance closed keeps chaining off its label" do
+      # Home -> B collapsed and the signature is gone, so B has no parent.
+      # B, BA, BB, BC are still on the map and B's label is a root slot.
+      labels = %{b: "B", ba: "BA", bb: "BB", bc: "BC"}
+      parents = %{b: [], ba: [:b], bb: [:b], bc: [:b]}
+
+      assert prefix(:b, labels, parents, "chain_letters_only") == "B"
+      assert prefix(:ba, labels, parents, "chain_letters_only") == "BA"
+
+      occupied =
+        for label <- ["BA", "BB", "BC"],
+            {:ok, index} = AutoLabel.parse_slot("chain_letters_only", label, "B", "", false),
+            do: index
+
+      assert AutoLabel.render("chain_letters_only", AutoLabel.next_index(occupied, false), "B", "", false) ==
+               "BD"
+    end
+
+    test "orphaned numeric-children nodes are chain-shaped at any depth" do
+      labels = %{a21: "A21", n121: "121"}
+      parents = %{}
+
+      assert prefix(:a21, labels, parents, "chain_index_letters") == "A21"
+      assert prefix(:n121, labels, parents, "chain_index") == "121"
+
+      dashed = %{a21: "A-2-1", n121: "1-2-1"}
+      label_fn = fn sys -> Map.get(dashed, sys, "") end
+      parents_fn = fn _sys -> [] end
+
+      assert AutoLabel.chain_prefix(:a21, label_fn, parents_fn, "chain_index_letters", "-", false) == "A-2-1"
+      assert AutoLabel.chain_prefix(:n121, label_fn, parents_fn, "chain_index", "-", false) == "1-2-1"
+      assert AutoLabel.chain_prefix(:a21, label_fn, parents_fn, "chain_index_letters", "", false) == ""
+    end
+
+    test "named roots never qualify as orphaned chain nodes" do
+      labels = %{home: "HTT", staging: "STAGING", deep: "ABA", odd: "A2X"}
+      parents = %{}
+
+      assert prefix(:home, labels, parents, "chain_letters_only") == ""
+      assert prefix(:staging, labels, parents, "chain_index_letters") == ""
+      # Letter-only chains are only decidable at depth one without a parent.
+      assert prefix(:deep, labels, parents, "chain_letters_only") == ""
+      assert prefix(:odd, labels, parents, "chain_index_letters") == ""
+    end
   end
 
   describe "next_index/2" do

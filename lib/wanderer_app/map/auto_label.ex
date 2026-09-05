@@ -171,6 +171,12 @@ defmodule WandererApp.Map.AutoLabel do
   never turn the root into a chain child: "HTT" parses under no parent's
   namespace. Cycles resolve by treating the revisited system as a root.
 
+  A system with no qualifying parent (its entrance signature was removed,
+  or the link never carried chain metadata) still acts as a chain prefix
+  when its label is chain-shaped - see `orphan_chain_label?/4` - so a chain
+  keeps growing as `BD`, `BE` after the hole from home to `B` closes,
+  instead of restarting root letters from `B`.
+
   `label_fn` returns a system's effective label; `parents_fn` returns the
   systems whose chain-carrying signatures link into the given system.
   """
@@ -197,7 +203,34 @@ defmodule WandererApp.Map.AutoLabel do
             match?({:ok, _}, parse_slot(format, label, parent_prefix, separator, start_at_zero))
           end)
 
-        if chain_child?, do: label, else: ""
+        if chain_child? or orphan_chain_label?(format, label, separator, start_at_zero),
+          do: label,
+          else: ""
+    end
+  end
+
+  # Whether a label with no live chain parent is unmistakably a chain label
+  # rather than a name. A root slot qualifies for every format ("B", "12").
+  # The numeric-children formats are decidable at any depth - a root slot
+  # followed by digit slots ("A21", "A-2-1") - because names never look like
+  # that. Letter-only chains are only decidable at depth one: "HTT" could be
+  # H > TT, and refusing it is exactly what keeps named roots from chaining.
+  defp orphan_chain_label?(format, label, separator, start_at_zero) do
+    label = String.trim(label)
+    sep = Regex.escape(separator)
+
+    cond do
+      match?({:ok, _}, parse_slot(format, label, "", separator, start_at_zero)) ->
+        true
+
+      format == "chain_index" ->
+        Regex.match?(~r/^\d+(?:#{sep}\d+)+$/, label)
+
+      format == "chain_index_letters" ->
+        Regex.match?(~r/^[A-Za-z]{1,2}(?:#{sep}\d+)+$/, label)
+
+      true ->
+        false
     end
   end
 
