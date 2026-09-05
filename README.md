@@ -20,9 +20,12 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   `C` frees the `B` slot and blocks `C` at that depth. A named root such as a
   home system labeled `HTT` starts a fresh chain (`A`, `B`, `C` - not `HTTA`):
   a system's label only acts as a chain prefix when that system is itself a
-  chain child. Existing labels are never
-  overwritten, return holes never consume a slot, and the
-  "Show linked signature ID as custom label part" display option is unaffected.
+  chain child. A chain child whose entrance has closed keeps chaining off its
+  own label (`B` still hands out `BD` after the hole from home collapses), as
+  long as that label is chain-shaped: a one- or two-letter root, or a root
+  followed by numeric slots. Existing labels are never overwritten, return
+  holes never consume a slot, and the "Show linked signature ID as custom
+  label part" display option is unaffected.
   No database schema changes: everything lives in existing JSON columns, so
   upstream migrations continue to apply cleanly.
 - **Route widget wording.** The "Routes" widget is renamed "Shared Routes" (its hubs are shared map state,
