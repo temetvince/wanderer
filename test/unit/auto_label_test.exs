@@ -226,6 +226,42 @@ defmodule WandererApp.Map.AutoLabelTest do
       assert AutoLabel.chain_prefix(:a21, label_fn, parents_fn, "chain_index_letters", "", false) == ""
     end
 
+    test "undirected neighbour graphs resolve like directed parent graphs" do
+      # Jump-labeled systems have no signatures, so parents come from
+      # wormhole connections: every system lists all its neighbours,
+      # children included. Home is a named root.
+      labels = %{home: "HTT", a: "A", aa: "AA", aab: "AAB", aaba: "AABA", b: "B"}
+
+      neighbours = %{
+        home: [:a, :b],
+        a: [:home, :aa],
+        aa: [:a, :aab],
+        aab: [:aa, :aaba],
+        aaba: [:aab],
+        b: [:home]
+      }
+
+      for {system, expected} <- [home: "", a: "A", aa: "AA", aab: "AAB", aaba: "AABA", b: "B"] do
+        assert prefix(system, labels, neighbours, "chain_letters_only") == expected,
+               "#{system} expected #{inspect(expected)}"
+      end
+    end
+
+    test "neighbour cycles through named systems still resolve" do
+      labels = %{home: "HTT", staging: "STAGING", aa: "AA", aab: "AAB"}
+
+      neighbours = %{
+        home: [:staging, :aa],
+        staging: [:home, :aab],
+        aa: [:home, :aab],
+        aab: [:aa, :staging]
+      }
+
+      assert prefix(:aab, labels, neighbours, "chain_letters_only") == "AAB"
+      assert prefix(:staging, labels, neighbours, "chain_letters_only") == ""
+      assert prefix(:home, labels, neighbours, "chain_letters_only") == ""
+    end
+
     test "named roots never qualify as orphaned chain nodes" do
       labels = %{home: "HTT", staging: "STAGING", deep: "ABA", odd: "A2X"}
       parents = %{}

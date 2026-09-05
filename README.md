@@ -14,8 +14,11 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
 
 - **Server-side auto-labeling of jumped systems.** Chain labels (`A`, `A1`,
   `A21`, or the new letter-only format `A`, `AA`, `ABA`) are computed by the
-  server when a signature is linked, for every user, configured per map in
-  **Map Settings → General** (admins only). Occupied slots are derived from the
+  server the moment a tracked pilot jumps a wormhole connection, and again
+  when a signature is linked, for every user, configured per map in
+  **Map Settings → General** (admins only). Gate jumps never label, so a
+  K-space system reached through a hole gets a label while its gate
+  neighbours stay unnamed. Occupied slots are derived from the
   labels currently on the map, so manual renames are respected: renaming `B` to
   `C` frees the `B` slot and blocks `C` at that depth. A named root such as a
   home system labeled `HTT` starts a fresh chain (`A`, `B`, `C` - not `HTTA`):
