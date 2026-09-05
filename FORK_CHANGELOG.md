@@ -6,6 +6,14 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
 
 ## 2026-09-05
 
+### Added
+
+- Auto-labeling fires when a tracked pilot jumps a wormhole connection, not only when a signature is linked
+  on splash. The jumped-into system gets its label, tag, or temporary name immediately; a signature linked to
+  the same hole later reuses that slot for its bookmark metadata. Gate jumps never label. Chain parents are
+  resolved from wormhole connections as well as signatures, so jump-labeled systems chain correctly without
+  any signature.
+
 ### Fixed
 
 - Auto-labeling: a chain child whose entrance has closed (the signature from its parent was removed, or the

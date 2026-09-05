@@ -171,14 +171,19 @@ defmodule WandererApp.Map.AutoLabel do
   never turn the root into a chain child: "HTT" parses under no parent's
   namespace. Cycles resolve by treating the revisited system as a root.
 
-  A system with no qualifying parent (its entrance signature was removed,
-  or the link never carried chain metadata) still acts as a chain prefix
-  when its label is chain-shaped - see `orphan_chain_label?/4` - so a chain
-  keeps growing as `BD`, `BE` after the hole from home to `B` closes,
-  instead of restarting root letters from `B`.
+  A system whose label is unmistakably chain-shaped - see
+  `orphan_chain_label?/4` - acts as a chain prefix without consulting any
+  parent, so a chain keeps growing as `BD`, `BE` after the hole from home to
+  `B` closes, instead of restarting root letters from `B`. Only labels that
+  could also be names (letter-only labels of three letters or more) need a
+  parent to vouch for them.
 
   `label_fn` returns a system's effective label; `parents_fn` returns the
-  systems whose chain-carrying signatures link into the given system.
+  candidate parents of a system. Candidates may be directed (systems whose
+  chain-carrying signatures link into it) or undirected (its wormhole
+  neighbours, children included): label consistency is what identifies the
+  real parent, and candidates are tried shortest label first so the parent
+  is found before the subtree below the system is explored.
   """
   def chain_prefix(system, label_fn, parents_fn, format, separator, start_at_zero, visited \\ MapSet.new()) do
     label = label_fn.(system)
@@ -186,6 +191,9 @@ defmodule WandererApp.Map.AutoLabel do
     cond do
       label in [nil, ""] ->
         ""
+
+      orphan_chain_label?(format, label, separator, start_at_zero) ->
+        label
 
       MapSet.member?(visited, system) ->
         ""
@@ -196,6 +204,7 @@ defmodule WandererApp.Map.AutoLabel do
         chain_child? =
           system
           |> parents_fn.()
+          |> Enum.sort_by(fn parent -> String.length(label_fn.(parent) || "") end)
           |> Enum.any?(fn parent ->
             parent_prefix =
               chain_prefix(parent, label_fn, parents_fn, format, separator, start_at_zero, visited)
@@ -203,9 +212,7 @@ defmodule WandererApp.Map.AutoLabel do
             match?({:ok, _}, parse_slot(format, label, parent_prefix, separator, start_at_zero))
           end)
 
-        if chain_child? or orphan_chain_label?(format, label, separator, start_at_zero),
-          do: label,
-          else: ""
+        if chain_child?, do: label, else: ""
     end
   end
 

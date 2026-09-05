@@ -983,6 +983,14 @@ defmodule WandererApp.Map.Server.CharactersImpl do
 
               :ok
           end
+
+          # Fork: name the system the character jumped into (wormhole
+          # connections only; existing labels are never overwritten).
+          WandererApp.Map.Server.AutoLabelImpl.maybe_auto_label_jump(
+            map_id,
+            old_location.solar_system_id,
+            location.solar_system_id
+          )
         end
 
       _ ->
