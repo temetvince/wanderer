@@ -4,6 +4,15 @@ Differences between [temetvince/wanderer](https://github.com/temetvince/wanderer
 upstream [wanderer-industries/wanderer](https://github.com/wanderer-industries/wanderer). Only fork changes
 are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first.
 
+## 2026-09-05
+
+### Fixed
+
+- Auto-labeling: a chain child whose entrance has closed (the signature from its parent was removed, or the
+  link never carried chain metadata) keeps chaining off its own label as long as that label is chain-shaped -
+  a one- or two-letter root, or a root followed by numeric slots. Previously such a system was treated as a
+  named root, so jumps from `B` restarted root letters and reissued `B` itself instead of `BD`.
+
 ## 2026-09-02
 
 ### Fixed
