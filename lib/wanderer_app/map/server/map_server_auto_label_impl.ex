@@ -2,12 +2,17 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
   @moduledoc """
   Server-side auto-labeling of jumped wormhole systems.
 
-  Runs when a signature is linked to a target system and applies the
-  map-level auto-label options (system custom label, system tag, temporary
-  name) for every user, regardless of any per-user client settings. All
-  chain state is derived from the labels currently on the map (see
-  `WandererApp.Map.AutoLabel`), so it survives client restarts, users
-  without settings, and manual renames.
+  Runs when a tracked character jumps a wormhole connection
+  (`maybe_auto_label_jump/3`) and when a signature is linked to a target
+  system (`maybe_auto_label/4`), applying the map-level auto-label options
+  (system custom label, system tag, temporary name) for every user,
+  regardless of any per-user client settings. All chain state is derived
+  from the labels currently on the map (see `WandererApp.Map.AutoLabel`), so
+  it survives client restarts, users without settings, and manual renames.
+
+  Labels are only ever filled in when empty, so the two triggers compose: a
+  jump names the system, and a signature linked later to the same hole
+  reuses that slot for its bookmark metadata. Gate connections never label.
   """
 
   require Logger
@@ -15,6 +20,9 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
   alias WandererApp.Api.MapSystemSignature
   alias WandererApp.Map.AutoLabel
   alias WandererApp.Map.Server.SignaturesImpl
+
+  # Mirrors ConnectionsImpl's connection types (not exported there).
+  @connection_type_stargate 1
 
   # {target kind, map option key} in priority order: the first enabled kind
   # drives the chain computation (prefix + occupied slots).
@@ -32,16 +40,11 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
   def maybe_auto_label(map_id, source_system, target_system, signature_eve_id) do
     {:ok, options} = WandererApp.Map.get_options(map_id)
 
-    enabled_targets =
-      @targets
-      |> Enum.map(fn {kind, key} -> {kind, Map.get(options, key, "disabled")} end)
-      |> Enum.filter(fn {_kind, format} -> AutoLabel.valid_format?(format) end)
-
-    case enabled_targets do
+    case enabled_targets(options) do
       [] ->
         :ok
 
-      _ ->
+      enabled_targets ->
         # Serialize per map so two simultaneous jumps can't be handed the
         # same free slot.
         :global.trans({{:map_auto_label, map_id}, self()}, fn ->
@@ -52,6 +55,65 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     e ->
       Logger.error("[auto_label] Failed to auto-label system: #{Exception.message(e)}")
       :ok
+  end
+
+  @doc """
+  Computes and applies auto-labels for the system a character just jumped
+  into, without any signature: `target_solar_system_id` was reached from
+  `source_solar_system_id`. No-op unless the map has an auto-label format
+  option enabled, both systems are on the map, the connection between them
+  is a wormhole (gate hops never label), and the target still has an empty
+  value for some enabled kind. Never raises.
+
+  Return holes need no special handling here: jumping back reuses the
+  existing connection, and the system on the far side already has its
+  label, which is never overwritten.
+  """
+  def maybe_auto_label_jump(map_id, source_solar_system_id, target_solar_system_id) do
+    {:ok, options} = WandererApp.Map.get_options(map_id)
+    enabled_targets = enabled_targets(options)
+
+    with [_ | _] <- enabled_targets,
+         {:ok, %{} = connection} <-
+           WandererApp.Map.find_connection(map_id, source_solar_system_id, target_solar_system_id),
+         true <- connection.type != @connection_type_stargate do
+      start_at_zero = truthy_option?(options, "auto_label_start_at_zero")
+      separator = Map.get(options, "auto_label_separator", "")
+
+      :global.trans({{:map_auto_label, map_id}, self()}, fn ->
+        # Re-read both systems inside the lock so a fleet jumping the same
+        # hole at once sees the label the first jump assigned.
+        source_system =
+          WandererApp.Map.find_system_by_location(map_id, %{solar_system_id: source_solar_system_id})
+
+        target_system =
+          WandererApp.Map.find_system_by_location(map_id, %{solar_system_id: target_solar_system_id})
+
+        unlabeled? =
+          not is_nil(target_system) and
+            Enum.any?(enabled_targets, fn {kind, _format} ->
+              empty?(effective_value(target_system, kind))
+            end)
+
+        if not is_nil(source_system) and unlabeled? do
+          assign_label(map_id, source_system, target_system, nil, enabled_targets, separator, start_at_zero)
+        else
+          :ok
+        end
+      end)
+    else
+      _ -> :ok
+    end
+  rescue
+    e ->
+      Logger.error("[auto_label] Failed to auto-label jumped system: #{Exception.message(e)}")
+      :ok
+  end
+
+  defp enabled_targets(options) do
+    @targets
+    |> Enum.map(fn {kind, key} -> {kind, Map.get(options, key, "disabled")} end)
+    |> Enum.filter(fn {_kind, format} -> AutoLabel.valid_format?(format) end)
   end
 
   defp do_auto_label(map_id, source_system, target_system, signature_eve_id, options, enabled_targets) do
@@ -166,7 +228,10 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
         {kind, AutoLabel.render(format, index, kind_prefix, separator, start_at_zero)}
       end)
 
-    update_signature(signature, index, prefix, separator, start_at_zero, Map.get(rendered, :temp_name))
+    # A jump has no signature yet; the one linked later reuses this slot.
+    if not is_nil(signature) do
+      update_signature(signature, index, prefix, separator, start_at_zero, Map.get(rendered, :temp_name))
+    end
 
     Enum.each(rendered, fn {kind, value} ->
       apply_target(map_id, target_system, kind, value)
@@ -176,7 +241,8 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
   end
 
   # Occupied slots are parsed from labels actually in use on the map:
-  #  - systems linked from the source system's other signatures (siblings)
+  #  - systems linked from the source system's other signatures, and systems
+  #    on the far end of its wormhole connections (siblings)
   #  - for chain formats, every map system whose label parses under the
   #    prefix (catches renames and leftovers from closed holes)
   # The target system itself never counts against its own assignment.
@@ -184,13 +250,19 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     {:ok, systems} = WandererApp.Map.list_systems(map_id)
     systems_by_solar_id = Map.new(systems, fn system -> {system.solar_system_id, system} end)
 
-    sibling_systems =
+    signature_siblings =
       source_system.id
       |> MapSystemSignature.by_system_id!()
       |> Enum.filter(fn sig ->
         sig.group == "Wormhole" and not is_nil(sig.linked_system_id)
       end)
       |> Enum.map(fn sig -> Map.get(systems_by_solar_id, sig.linked_system_id) end)
+      |> Enum.reject(&is_nil/1)
+
+    connection_siblings =
+      map_id
+      |> wormhole_neighbours(source_system.solar_system_id)
+      |> Enum.map(fn solar_id -> Map.get(systems_by_solar_id, solar_id) end)
       |> Enum.reject(&is_nil/1)
 
     chain_systems =
@@ -200,7 +272,7 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
         []
       end
 
-    (sibling_systems ++ chain_systems)
+    (signature_siblings ++ connection_siblings ++ chain_systems)
     |> Enum.uniq_by(& &1.solar_system_id)
     |> Enum.reject(fn system ->
       system.solar_system_id == target_system.solar_system_id or
@@ -273,8 +345,11 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
   end
 
   # Wires AutoLabel.chain_prefix/7 to this map's data: labels come from the
-  # map cache, parents are systems whose non-deleted signature on this map
-  # links into the given system carrying chain metadata (bookmark_index).
+  # map cache; parent candidates are systems whose non-deleted signature on
+  # this map links into the given system carrying chain metadata
+  # (bookmark_index), plus its wormhole neighbours, so jump-labeled systems
+  # without any signature still resolve. Label consistency picks the real
+  # parent among the candidates.
   defp chain_prefix_for(map_id, source_system, kind, format, separator, start_at_zero) do
     {:ok, systems} = WandererApp.Map.list_systems(map_id)
     by_solar_id = Map.new(systems, fn system -> {system.solar_system_id, system} end)
@@ -289,16 +364,20 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     end
 
     parents_fn = fn solar_id ->
-      solar_id
-      |> MapSystemSignature.by_linked_system_id!()
-      |> Enum.filter(fn sig ->
-        not sig.deleted and
-          MapSet.member?(map_system_uuids, sig.system_id) and
-          sig |> decode_custom_info() |> Map.has_key?("bookmark_index")
-      end)
-      |> Enum.map(fn sig -> Map.get(by_uuid, sig.system_id) end)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.map(& &1.solar_system_id)
+      signature_parents =
+        solar_id
+        |> MapSystemSignature.by_linked_system_id!()
+        |> Enum.filter(fn sig ->
+          not sig.deleted and
+            MapSet.member?(map_system_uuids, sig.system_id) and
+            sig |> decode_custom_info() |> Map.has_key?("bookmark_index")
+        end)
+        |> Enum.map(fn sig -> Map.get(by_uuid, sig.system_id) end)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.map(& &1.solar_system_id)
+
+      (signature_parents ++ wormhole_neighbours(map_id, solar_id))
+      |> Enum.filter(&Map.has_key?(by_solar_id, &1))
       |> Enum.uniq()
     end
 
@@ -310,6 +389,20 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
       separator,
       start_at_zero
     )
+  end
+
+  # Solar system ids on the far end of the wormhole connections touching
+  # `solar_system_id`. Gate connections never take part in chains.
+  defp wormhole_neighbours(map_id, solar_system_id) do
+    map_id
+    |> WandererApp.Map.find_connections(solar_system_id)
+    |> Enum.reject(fn connection -> connection.type == @connection_type_stargate end)
+    |> Enum.map(fn connection ->
+      if connection.solar_system_source == solar_system_id,
+        do: connection.solar_system_target,
+        else: connection.solar_system_source
+    end)
+    |> Enum.uniq()
   end
 
   defp effective_value(system, :label) do
