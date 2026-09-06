@@ -108,6 +108,7 @@ const TIME_OPTIONS = [
   { key: 'time_1h', label: '1 Hour', defaultVal: '1H' },
   { key: 'time_4h', label: '4 Hours', defaultVal: '4H' },
   { key: 'time_4h30m', label: '4.5 Hours', defaultVal: '4.5H' },
+  { key: 'time_12h', label: '12 Hours', defaultVal: '12H' },
   { key: 'time_16h', label: '16 Hours', defaultVal: '16H' },
   { key: 'time_24h', label: '24 Hours', defaultVal: '' },
   { key: 'time_48h', label: '48 Hours', defaultVal: '' },

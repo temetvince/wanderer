@@ -75,6 +75,8 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
   @connection_time_status_eol_24 5
   # EOL 48h
   @connection_time_status_eol_48 6
+  # EOL 12h
+  @connection_time_status_eol_12 7
 
   # EOL 1h
   @connection_eol_minutes 60
@@ -82,6 +84,8 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
   @connection_eol_4_minutes 4 * 60
   # EOL 4.5h
   @connection_eol_4_5_minutes 4.5 * 60
+  # EOL 12h
+  @connection_eol_12_minutes 12 * 60
   # EOL 16h
   @connection_eol_16_minutes 16 * 60
   # EOL 24h
@@ -258,6 +262,14 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
             # Always reset start_time when status changes (manual override)
             # This ensures user manual changes aren't immediately overridden by cleanup
             if time_status != old_time_status do
+              # Fork: a change made by anything but the countdown or the
+              # lifetime self-correction is a person's observation; the
+              # self-correction never overrides it. An unchanged value (the
+              # linked-signature echo) is not an observation.
+              if Map.get(connection_update, :auto, false) != true do
+                WandererApp.Cache.put(manual_time_status_key(map_id, connection_id), true)
+              end
+
               # Emit telemetry for manual time status change
               :telemetry.execute(
                 [:wanderer_app, :connection, :manual_status_change],
@@ -407,7 +419,7 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
     |> Enum.each(fn %{
                       solar_system_source: solar_system_source_id,
                       solar_system_target: solar_system_target_id
-                    } ->
+                    } = connection ->
       # Emit telemetry for connection auto-deletion
       :telemetry.execute(
         [:wanderer_app, :map, :connection_cleanup, :delete],
@@ -428,6 +440,8 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
         solar_system_source_id: solar_system_source_id,
         solar_system_target_id: solar_system_target_id
       })
+
+      remember_expired_wormhole(map_id, connection)
 
       delete_connection(map_id, %{
         solar_system_source_id: solar_system_source_id,
@@ -476,7 +490,8 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
       update_connection_time_status(map_id, %{
         solar_system_source_id: solar_system_source_id,
         solar_system_target_id: solar_system_target_id,
-        time_status: new_time_status
+        time_status: new_time_status,
+        auto: true
       })
     end
   end
@@ -722,6 +737,13 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
 
         Impl.broadcast!(map_id, :add_connection, connection)
 
+        # Fork: a jump that recreates a recently expired hole knows the
+        # hole's real age; runs after the add broadcast so clients see the
+        # corrected status as an update, not a stale add.
+        if connection_type == @connection_type_wormhole and not is_manual do
+          maybe_correct_recreated_lifetime(map_id, connection)
+        end
+
         Impl.broadcast!(map_id, :maybe_link_signature, %{
           character_id: character_id,
           solar_system_source: old_location.solar_system_id,
@@ -755,6 +777,14 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
           character_id: character_id,
           solar_system_id: location.solar_system_id
         })
+
+        if not is_manual do
+          maybe_correct_jumped_lifetime(
+            map_id,
+            old_location.solar_system_id,
+            location.solar_system_id
+          )
+        end
 
         :ok
 
@@ -1072,6 +1102,8 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
 
         WandererApp.Cache.delete("map_#{map_id}:conn_#{connection.id}:start_time")
         WandererApp.Cache.delete("map_#{map_id}:conn_#{connection.id}:locked_info")
+        WandererApp.Cache.delete(first_seen_key(map_id, connection.id))
+        WandererApp.Cache.delete(manual_time_status_key(map_id, connection.id))
 
         # Clear linked_sig_eve_id on target system when connection is deleted
         # This ensures old signatures become orphaned and won't affect future connections
@@ -1170,40 +1202,173 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
   defp get_ship_size_type(_source_solar_system_id, _target_solar_system_id, _connection_type),
     do: @large_ship_size
 
-  defp get_time_status(
-         _source_solar_system_id,
-         _target_solar_system_id,
-         @frigate_ship_size
-       ),
-       do: @connection_time_status_eol_4_5
+  # ---------------------------------------------------------------------------
+  # Fork: lifetime self-correction.
+  #
+  # A jump through a wormhole proves it is alive now. If the hole has been
+  # known for longer than the resolver's guessed lifetime, the guess was too
+  # short: promote to the shortest candidate that outlives the known age and
+  # restart the countdown from the remaining time. A status a person set by
+  # hand is never overridden. Auto-expired holes are remembered by system
+  # pair for 48h so a jump that recreates the connection still corrects it.
+  # ---------------------------------------------------------------------------
 
-  defp get_time_status(
-         source_solar_system_id,
-         target_solar_system_id,
-         _ship_size_type
+  @expired_wormhole_ttl :timer.hours(48)
+
+  defp first_seen_key(map_id, connection_id), do: "map_#{map_id}:conn_#{connection_id}:first_seen"
+
+  defp manual_time_status_key(map_id, connection_id),
+    do: "map_#{map_id}:conn_#{connection_id}:manual_time_status"
+
+  defp expired_wormhole_key(map_id, solar_system_a, solar_system_b) do
+    [a, b] = Enum.sort([solar_system_a, solar_system_b])
+    "map_#{map_id}:expired_wormhole:#{a}_#{b}"
+  end
+
+  defp remember_expired_wormhole(
+         map_id,
+         %{
+           type: @connection_type_wormhole,
+           solar_system_source: source,
+           solar_system_target: target
+         } =
+           connection
        ) do
-    # Check if either system is C1 before creating the connection
+    WandererApp.Cache.put(
+      expired_wormhole_key(map_id, source, target),
+      first_seen(map_id, connection),
+      ttl: @expired_wormhole_ttl
+    )
+  end
+
+  defp remember_expired_wormhole(_map_id, _connection), do: :ok
+
+  # The connection was just recreated by a jump; if the same pair expired
+  # recently, the hole is older than this record says.
+  defp maybe_correct_recreated_lifetime(
+         map_id,
+         %{id: connection_id, solar_system_source: source, solar_system_target: target} =
+           connection
+       ) do
+    key = expired_wormhole_key(map_id, source, target)
+
+    case WandererApp.Cache.lookup!(key) do
+      %DateTime{} = first_seen ->
+        WandererApp.Cache.delete(key)
+        WandererApp.Cache.put(first_seen_key(map_id, connection_id), first_seen)
+        apply_lifetime_correction(map_id, connection, first_seen)
+
+      _ ->
+        :ok
+    end
+  rescue
+    e ->
+      Logger.warning("[wormhole_lifetime] recreate correction failed: #{Exception.message(e)}")
+      :ok
+  end
+
+  defp maybe_correct_jumped_lifetime(map_id, solar_system_source_id, solar_system_target_id) do
+    case WandererApp.Map.find_connection(map_id, solar_system_source_id, solar_system_target_id) do
+      {:ok, %{type: @connection_type_wormhole, id: connection_id} = connection} ->
+        if WandererApp.Cache.lookup!(manual_time_status_key(map_id, connection_id)) != true do
+          apply_lifetime_correction(map_id, connection, first_seen(map_id, connection))
+        end
+
+        :ok
+
+      _ ->
+        :ok
+    end
+  rescue
+    e ->
+      Logger.warning("[wormhole_lifetime] jump correction failed: #{Exception.message(e)}")
+      :ok
+  end
+
+  defp apply_lifetime_correction(_map_id, _connection, nil), do: :ok
+
+  defp apply_lifetime_correction(
+         map_id,
+         %{
+           id: connection_id,
+           solar_system_source: source_solar_system_id,
+           solar_system_target: target_solar_system_id,
+           ship_size_type: ship_size_type
+         },
+         %DateTime{} = first_seen
+       ) do
+    now = DateTime.utc_now()
+    age_hours = DateTime.diff(now, first_seen, :second) / 3600
+
     {:ok, source_system_info} = get_system_static_info(source_solar_system_id)
     {:ok, target_system_info} = get_system_static_info(target_solar_system_id)
+    {:ok, wormhole_types} = WandererApp.CachedInfo.get_wormhole_types()
 
-    cond do
-      # C1/2/3/4 systems always get eol_16
-      source_system_info.system_class in [@c1, @c2, @c3, @c4] or
-          target_system_info.system_class in [@c1, @c2, @c3, @c4] ->
-        @connection_time_status_eol_16
+    case WandererApp.Map.WormholeLifetime.correction(
+           source_system_info,
+           target_system_info,
+           ship_size_type,
+           wormhole_types,
+           age_hours
+         ) do
+      {time_status, remaining_hours} ->
+        :telemetry.execute(
+          [:wanderer_app, :connection, :lifetime_correction],
+          %{
+            age_hours: age_hours,
+            remaining_hours: remaining_hours,
+            system_time: System.system_time()
+          },
+          %{map_id: map_id, connection_id: connection_id, new_time_status: time_status}
+        )
 
-      # C5/6 systems always get eol_24
-      source_system_info.system_class in [@c5, @c6] or
-          target_system_info.system_class in [@c5, @c6] ->
-        @connection_time_status_eol_24
+        update_connection_time_status(map_id, %{
+          solar_system_source_id: source_solar_system_id,
+          solar_system_target_id: target_solar_system_id,
+          time_status: time_status,
+          auto: true
+        })
 
-      true ->
-        @connection_time_status_default
+        # The countdown reads "bucket length minus time since start", so
+        # backdate the start until that difference equals the remaining time.
+        elapsed_minutes = round(get_time_status_minutes(time_status) - remaining_hours * 60)
+        set_start_time(map_id, connection_id, DateTime.add(now, -elapsed_minutes, :minute))
+
+      nil ->
+        :ok
     end
   end
 
+  defp first_seen(map_id, %{id: connection_id} = connection) do
+    case WandererApp.Cache.lookup!(first_seen_key(map_id, connection_id)) do
+      %DateTime{} = first_seen -> first_seen
+      _ -> Map.get(connection, :inserted_at)
+    end
+  end
+
+  # Initial lifetime from static EVE data (system classes, statics, wormhole
+  # type table). See WandererApp.Map.WormholeLifetime for the tiers.
+  defp get_time_status(
+         source_solar_system_id,
+         target_solar_system_id,
+         ship_size_type
+       ) do
+    {:ok, source_system_info} = get_system_static_info(source_solar_system_id)
+    {:ok, target_system_info} = get_system_static_info(target_solar_system_id)
+    {:ok, wormhole_types} = WandererApp.CachedInfo.get_wormhole_types()
+
+    WandererApp.Map.WormholeLifetime.time_status(
+      source_system_info,
+      target_system_info,
+      ship_size_type,
+      wormhole_types
+    )
+  end
+
+  # A connection with no known lifetime is left alone; the countdown never
+  # invents one.
   defp get_new_time_status(_start_time, @connection_time_status_default),
-    do: @connection_time_status_eol_24
+    do: @connection_time_status_default
 
   defp get_new_time_status(start_time, old_time_status) do
     left_minutes =
@@ -1219,6 +1384,9 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
 
       left_minutes <= @connection_eol_4_5_minutes ->
         @connection_time_status_eol_4_5
+
+      left_minutes <= @connection_eol_12_minutes ->
+        @connection_time_status_eol_12
 
       left_minutes <= @connection_eol_16_minutes ->
         @connection_time_status_eol_16
@@ -1237,6 +1405,7 @@ defmodule WandererApp.Map.Server.ConnectionsImpl do
   defp get_time_status_minutes(@connection_time_status_eol), do: @connection_eol_minutes
   defp get_time_status_minutes(@connection_time_status_eol_4), do: @connection_eol_4_minutes
   defp get_time_status_minutes(@connection_time_status_eol_4_5), do: @connection_eol_4_5_minutes
+  defp get_time_status_minutes(@connection_time_status_eol_12), do: @connection_eol_12_minutes
   defp get_time_status_minutes(@connection_time_status_eol_16), do: @connection_eol_16_minutes
   defp get_time_status_minutes(@connection_time_status_eol_24), do: @connection_eol_24_minutes
   defp get_time_status_minutes(@connection_time_status_eol_48), do: @connection_eol_48_minutes

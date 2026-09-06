@@ -31,6 +31,17 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   label part" display option is unaffected.
   No database schema changes: everything lives in existing JSON columns, so
   upstream migrations continue to apply cleanly.
+- **Data-driven wormhole lifetimes.** A new wormhole connection's lifetime comes from static EVE data
+  instead of a guess by system class: a frigate hole is 4.5h; otherwise the source system's static that leads
+  to the target's class, then the target's static that leads back (the K162 side), then every wandering type
+  joining the two classes in either direction, shortest on disagreement. Statics resolve exactly; only
+  wanderings between classes with both a 16h and a 24h type stay short. A jump through a hole that has
+  outlived its guess by more than EVE's 30-minute "closure imminent" window promotes it to the shortest
+  candidate that can still be alive and restarts the countdown from the remaining time (a candidate still
+  inside that window counts as alive with nothing left, so it shows EOL); auto-expired holes are remembered
+  by system pair for 48h so the jump that recreates one corrects it too. A lifetime a person set by hand is
+  never overridden. Pochven holes get a 12h bucket. A connection with no known lifetime is left alone rather
+  than forced to 24h.
 - **Route widget wording.** The "Routes" widget is renamed "Shared Routes" (its hubs are shared map state,
   unlike User Routes), and the old "Show shortest" checkbox is now "Prefer safest" (checked = prefer
   high-sec, unchecked = shortest).

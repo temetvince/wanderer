@@ -8,11 +8,32 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
 
 ### Added
 
+- Wormhole connection lifetimes are resolved from static EVE data (`WandererApp.Map.WormholeLifetime`):
+  frigate holes 4.5h, then the source system's static leading to the target's class, then the target's
+  static leading back (K162 side), then every wandering type joining the two classes, shortest on
+  disagreement. Previously any hole touching a C1–C4 was 16h and any other hole touching a C5/C6 was 24h, so
+  C4-to-C5 statics, C1–C4 k-space statics, Pochven, Thera, drifter, and k-space-to-k-space holes were wrong
+  or had no lifetime at all.
+- Lifetime self-correction: a jump through a wormhole that has outlived its guessed lifetime by more than
+  EVE's 30-minute "closure imminent" window promotes it to the shortest candidate that can still be alive and
+  restarts the countdown from the remaining time; a candidate still inside that window is treated as alive
+  with nothing left and shows EOL. Holes deleted by auto-expiry are remembered by system pair for 48h so the
+  jump that recreates the connection corrects it as well. A time status set by a person is never
+  overridden. Auto-labeling of the jumped-into system is unaffected: it runs after the connection exists,
+  on the same jump.
+- A 12h time-status bucket (value 7) for Pochven holes, in the lifetime selector, bookmark name format
+  (`time_12h`), and the countdown.
+
 - Auto-labeling fires when a tracked pilot jumps a wormhole connection, not only when a signature is linked
   on splash. The jumped-into system gets its label, tag, or temporary name immediately; a signature linked to
   the same hole later reuses that slot for its bookmark metadata. Gate jumps never label. Chain parents are
   resolved from wormhole connections as well as signatures, so jump-labeled systems chain correctly without
   any signature.
+
+### Changed
+
+- The connection countdown leaves a connection with no known lifetime (time status 0) alone instead of
+  forcing it to 24h on its first pass.
 
 ### Fixed
 
