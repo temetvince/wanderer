@@ -18,6 +18,7 @@ export enum TimeStatus {
   _16h,
   _24h,
   _48h,
+  _12h, // appended: numeric values are persisted, so order is not by duration
 }
 
 export enum ShipSizeStatus {
