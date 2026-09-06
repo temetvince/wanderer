@@ -26,6 +26,13 @@ const LIFE_TIME = [
     description: 'Less than one 4.5 hours remaining. All small holes have such lifetime.',
   },
   {
+    id: TimeStatus._12h,
+    label: '12H',
+    className: 'bg-orange-300 hover:!bg-orange-300',
+    inactiveClassName: 'bg-orange-400/30',
+    description: 'Less than one 12 hours remaining. Pochven holes have such lifetime.',
+  },
+  {
     id: TimeStatus._16h,
     label: '16H',
     className: 'bg-orange-300 hover:!bg-orange-300',
@@ -61,7 +68,7 @@ export const WdLifetimeSelector = ({
 }: WdLifetimeSelectorProps) => {
   return (
     <form>
-      <div className={clsx('grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr] gap-1', className)}>
+      <div className={clsx('grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-1', className)}>
         {LIFE_TIME.map(x => (
           <WdButton
             key={x.id}

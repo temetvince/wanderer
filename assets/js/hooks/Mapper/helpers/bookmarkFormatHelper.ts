@@ -18,6 +18,8 @@ const getTimeStatusString = (status?: TimeStatus, mapping?: Record<string, strin
       return mapping?.time_4h !== undefined ? mapping.time_4h : '4H';
     case TimeStatus._4h30m:
       return mapping?.time_4h30m !== undefined ? mapping.time_4h30m : '4.5H';
+    case TimeStatus._12h:
+      return mapping?.time_12h !== undefined ? mapping.time_12h : '12H';
     case TimeStatus._16h:
       return mapping?.time_16h !== undefined ? mapping.time_16h : '16H';
     case TimeStatus._24h:
