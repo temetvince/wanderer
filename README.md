@@ -45,6 +45,16 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
 - **Route widget wording.** The "Routes" widget is renamed "Shared Routes" (its hubs are shared map state,
   unlike User Routes), and the old "Show shortest" checkbox is now "Prefer safest" (checked = prefer
   high-sec, unchecked = shortest).
+- **Routes settings are applied per key.** The server reads each routes setting it recognizes from the
+  request (`WandererApp.Map.RoutesSettings`) and falls back to its default only for keys that are absent.
+  Upstream discards the whole payload when any key is missing, so a settings blob from an older client or an
+  admin default leaves every toggle inert: Thera connections stay included, Trig/Edencom/Pochven systems are
+  never avoided and "Prefer safest" does nothing. Applying two toggles at once in the routes settings dialog
+  reloads the routes as well. Thera and Turnur connections from EVE-Scout count as end-of-life when under 4
+  hours remain, so "Include EOL" drops dying holes and keeps healthy ones (upstream had it inverted). With
+  "Include Thera connections" off no route passes through Thera at all, not even through Thera connections
+  mapped on the map; only a route that starts in Thera may leave it. Upstream only withheld the EVE-Scout
+  connections, so a mapped Thera still carried routes.
 - **`Dockerfile.test`** for running the Elixir test suite in Docker (see below).
 
 The companion fork [temetvince/eve-route-builder](https://github.com/temetvince/eve-route-builder)

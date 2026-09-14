@@ -173,8 +173,11 @@ defmodule WandererApp.Server.TurnurDataFetcher do
   defp _get_ship_size("xlarge"), do: 2
   defp _get_ship_size(_), do: 1
 
-  defp _get_time_status(remaining_hours) when remaining_hours < 2, do: 0
-  defp _get_time_status(_), do: 1
+  # Connection time_status 1 is the map's end-of-life bucket (see the
+  # `include_eol` filter above and `TimeStatus._1h` on the client). EVE marks a
+  # hole end-of-life when under 4 hours remain.
+  defp _get_time_status(remaining_hours) when remaining_hours < 4, do: 1
+  defp _get_time_status(_), do: 0
 
   defp _cache_items([]), do: WandererApp.Cache.put(@name, [])
 
