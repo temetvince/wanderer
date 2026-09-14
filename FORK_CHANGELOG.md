@@ -4,6 +4,24 @@ Differences between [temetvince/wanderer](https://github.com/temetvince/wanderer
 upstream [wanderer-industries/wanderer](https://github.com/wanderer-industries/wanderer). Only fork changes
 are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first.
 
+## 2026-09-14
+
+### Fixed
+
+- Routes settings (Shared Routes, User Routes, Routes By) are applied per key: `WandererApp.Map.RoutesSettings`
+  keeps every recognized setting present in the request and falls back to the server default only for absent
+  keys. Upstream pattern-matched the full payload and silently used all defaults when any key was missing, so
+  a settings blob saved by an older client or pushed as an admin default left every toggle inert: Thera
+  connections were always included, Trig/Edencom/Pochven systems never avoided, "Prefer safest" ignored.
+- The routes widgets reload when two settings toggles are applied together (one turned on, one turned off).
+  The reload trigger compared a sorted list of the setting values, which is identical before and after such a
+  change.
+- Thera and Turnur connections from EVE-Scout are flagged end-of-life when under 4 hours remain. Upstream
+  flagged the healthy ones instead, so "Include EOL" off dropped every long-lived hole and kept the dying ones.
+- "Include Thera connections" off adds Thera to the avoid list (Shared Routes, User Routes, Routes By), so no
+  route passes through Thera even when Thera is mapped with its own connections; a route that starts in Thera
+  may still leave it. Upstream only withheld the EVE-Scout connections and kept routing through a mapped Thera.
+
 ## 2026-09-05
 
 ### Added

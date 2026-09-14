@@ -415,34 +415,8 @@ defmodule WandererAppWeb.MapRoutesEventHandler do
   def handle_ui_event(event, body, socket),
     do: MapCoreEventHandler.handle_ui_event(event, body, socket)
 
-  defp get_routes_settings(%{
-         "path_type" => path_type,
-         "include_mass_crit" => include_mass_crit,
-         "include_eol" => include_eol,
-         "include_frig" => include_frig,
-         "include_cruise" => include_cruise,
-         "avoid_wormholes" => avoid_wormholes,
-         "avoid_pochven" => avoid_pochven,
-         "avoid_edencom" => avoid_edencom,
-         "avoid_triglavian" => avoid_triglavian,
-         "include_thera" => include_thera,
-         "avoid" => avoid
-       }),
-       do: %{
-         path_type: path_type,
-         include_mass_crit: include_mass_crit,
-         include_eol: include_eol,
-         include_frig: include_frig,
-         include_cruise: include_cruise,
-         avoid_wormholes: avoid_wormholes,
-         avoid_pochven: avoid_pochven,
-         avoid_edencom: avoid_edencom,
-         avoid_triglavian: avoid_triglavian,
-         include_thera: include_thera,
-         avoid: avoid
-       }
-
-  defp get_routes_settings(_), do: %{}
+  defp get_routes_settings(routes_settings),
+    do: WandererApp.Map.RoutesSettings.from_params(routes_settings)
 
   defp set_autopilot_waypoint(
          current_user,

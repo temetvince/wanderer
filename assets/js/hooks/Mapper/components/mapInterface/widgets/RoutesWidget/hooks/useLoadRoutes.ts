@@ -3,7 +3,6 @@ import { useMapRootState } from '@/hooks/Mapper/mapRootProvider';
 import { RoutesType } from '@/hooks/Mapper/mapRootProvider/types.ts';
 import { LoadRoutesCommand } from '@/hooks/Mapper/components/mapInterface/widgets/RoutesWidget/types.ts';
 import { RoutesList } from '@/hooks/Mapper/types/routes.ts';
-import { flattenValues } from '@/hooks/Mapper/utils/flattenValues.ts';
 
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T>();
@@ -37,8 +36,13 @@ export const useLoadRoutes = ({
   } = useMapRootState();
 
   const prevSys = usePrevious(systems);
-  const ref = useRef({ prevSys, selectedSystems });
-  ref.current = { prevSys, selectedSystems };
+  const ref = useRef({ prevSys, selectedSystems, routesSettings });
+  ref.current = { prevSys, selectedSystems, routesSettings };
+
+  // Reload when any setting changes. The serialized form is compared as one
+  // value, so two toggles applied together (one on, one off) still trigger a
+  // reload - a sorted list of the values would not change in that case.
+  const routesSettingsKey = JSON.stringify(routesSettings);
 
   const loadRoutes = useCallback(
     (systemId: string, routesSettings: RoutesType) => {
@@ -58,17 +62,8 @@ export const useLoadRoutes = ({
     }
 
     const [systemId] = selectedSystems;
-    loadRoutes(systemId, routesSettings);
-  }, [
-    loadRoutes,
-    selectedSystems,
-    systems?.length,
-    connections,
-    hubs,
-    // we need make it flat recursively
-    ...flattenValues(routesSettings),
-    ...deps,
-  ]);
+    loadRoutes(systemId, ref.current.routesSettings);
+  }, [loadRoutes, selectedSystems, systems?.length, connections, hubs, routesSettingsKey, ...deps]);
 
   return { loading, loadRoutes, setLoading };
 };

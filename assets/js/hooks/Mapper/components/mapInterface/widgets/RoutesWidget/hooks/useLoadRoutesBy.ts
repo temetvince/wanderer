@@ -3,7 +3,6 @@ import { useMapRootState } from '@/hooks/Mapper/mapRootProvider';
 import { RoutesType } from '@/hooks/Mapper/mapRootProvider/types.ts';
 import { LoadRoutesCommand } from '@/hooks/Mapper/components/mapInterface/widgets/RoutesWidget/types.ts';
 import { RoutesList } from '@/hooks/Mapper/types/routes.ts';
-import { flattenValues } from '@/hooks/Mapper/utils/flattenValues.ts';
 import { useMapEventListener } from '@/hooks/Mapper/events';
 import { Commands } from '@/hooks/Mapper/types';
 
@@ -37,8 +36,11 @@ export const useLoadRoutesBy = ({
   } = useMapRootState();
 
   const prevSys = usePrevious(selectedSystems);
-  const ref = useRef({ prevSys, selectedSystems });
-  ref.current = { prevSys, selectedSystems };
+  const ref = useRef({ prevSys, selectedSystems, routesSettings });
+  ref.current = { prevSys, selectedSystems, routesSettings };
+
+  // See useLoadRoutes: one serialized value catches combined toggles.
+  const routesSettingsKey = JSON.stringify(routesSettings);
 
   const loadRoutes = useCallback(
     (systemId: string, settings: RoutesType) => {
@@ -64,8 +66,8 @@ export const useLoadRoutesBy = ({
     }
 
     const [systemId] = selectedSystems;
-    loadRoutes(systemId, routesSettings);
-  }, [loadRoutes, selectedSystems, ...flattenValues(routesSettings), ...deps]);
+    loadRoutes(systemId, ref.current.routesSettings);
+  }, [loadRoutes, selectedSystems, routesSettingsKey, ...deps]);
 
   return { loading, loadRoutes, setLoading };
 };
