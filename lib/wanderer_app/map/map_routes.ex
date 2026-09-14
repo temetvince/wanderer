@@ -37,6 +37,7 @@ defmodule WandererApp.Map.Routes do
   ]
 
   @zarzakh_system 30_100_000
+  @thera_system 31_000_005
   @default_avoid_systems [@zarzakh_system]
 
   @routes_ttl :timer.minutes(15)
@@ -95,7 +96,7 @@ defmodule WandererApp.Map.Routes do
     origin = origin |> String.to_integer()
     hubs = hubs |> Enum.map(&(&1 |> String.to_integer()))
 
-    params = build_route_params(map_id, routes_settings)
+    params = build_route_params(map_id, origin, routes_settings)
 
     {:ok, all_routes} = get_all_routes(hubs, origin, params)
 
@@ -109,7 +110,7 @@ defmodule WandererApp.Map.Routes do
     {:ok, routes}
   end
 
-  defp build_route_params(map_id, routes_settings) do
+  defp build_route_params(map_id, origin, routes_settings) do
     routes_settings = @default_routes_settings |> Map.merge(routes_settings)
 
     connections =
@@ -209,6 +210,15 @@ defmodule WandererApp.Map.Routes do
 
         false ->
           avoidance_list
+      end
+
+    # "Include Thera connections" off means no route passes through Thera at
+    # all, even when Thera is mapped with its own connections. Only a route that
+    # starts in Thera may leave it.
+    avoidance_list =
+      case routes_settings.include_thera do
+        false when origin != @thera_system -> [avoidance_list, @thera_system]
+        _ -> avoidance_list
       end
 
     avoidance_list =
@@ -332,7 +342,8 @@ defmodule WandererApp.Map.Routes do
           []
 
         _ ->
-          result_systems |> Enum.reject(fn system_id -> to_string(system_id) == to_string(origin) end)
+          result_systems
+          |> Enum.reject(fn system_id -> to_string(system_id) == to_string(origin) end)
       end
 
     %{

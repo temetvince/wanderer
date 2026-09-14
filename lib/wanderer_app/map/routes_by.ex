@@ -31,6 +31,7 @@ defmodule WandererApp.Map.RoutesBy do
   }
 
   @zarzakh_system 30_100_000
+  @thera_system 31_000_005
   @default_avoid_systems [@zarzakh_system]
   @get_link_pairs_advanced_params [
     :include_mass_crit,
@@ -44,7 +45,7 @@ defmodule WandererApp.Map.RoutesBy do
 
     connections = build_connections(map_id, routes_settings)
 
-    avoidance_list = build_avoidance_list(routes_settings)
+    avoidance_list = build_avoidance_list(origin, routes_settings)
 
     security_type =
       routes_settings
@@ -174,7 +175,7 @@ defmodule WandererApp.Map.RoutesBy do
     |> Enum.map(fn {:ok, val} -> val end)
   end
 
-  defp build_avoidance_list(routes_settings) do
+  defp build_avoidance_list(origin, routes_settings) do
     {:ok, trig_systems} = WandererApp.CachedInfo.get_trig_systems()
 
     pochven_solar_systems =
@@ -208,6 +209,14 @@ defmodule WandererApp.Map.RoutesBy do
       case routes_settings.avoid_pochven do
         true -> [avoidance_list | pochven_solar_systems]
         false -> avoidance_list
+      end
+
+    # See WandererApp.Map.Routes: Thera off keeps every route out of Thera
+    # unless the route starts there.
+    avoidance_list =
+      case routes_settings.include_thera do
+        false when origin != @thera_system -> [avoidance_list, @thera_system]
+        _ -> avoidance_list
       end
 
     (@default_avoid_systems ++ [routes_settings.avoid | avoidance_list])
