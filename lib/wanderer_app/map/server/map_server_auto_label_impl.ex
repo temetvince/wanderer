@@ -48,7 +48,14 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
         # Serialize per map so two simultaneous jumps can't be handed the
         # same free slot.
         :global.trans({{:map_auto_label, map_id}, self()}, fn ->
-          do_auto_label(map_id, source_system, target_system, signature_eve_id, options, enabled_targets)
+          do_auto_label(
+            map_id,
+            source_system,
+            target_system,
+            signature_eve_id,
+            options,
+            enabled_targets
+          )
         end)
     end
   rescue
@@ -84,10 +91,14 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
         # Re-read both systems inside the lock so a fleet jumping the same
         # hole at once sees the label the first jump assigned.
         source_system =
-          WandererApp.Map.find_system_by_location(map_id, %{solar_system_id: source_solar_system_id})
+          WandererApp.Map.find_system_by_location(map_id, %{
+            solar_system_id: source_solar_system_id
+          })
 
         target_system =
-          WandererApp.Map.find_system_by_location(map_id, %{solar_system_id: target_solar_system_id})
+          WandererApp.Map.find_system_by_location(map_id, %{
+            solar_system_id: target_solar_system_id
+          })
 
         unlabeled? =
           not is_nil(target_system) and
@@ -96,7 +107,15 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
             end)
 
         if not is_nil(source_system) and unlabeled? do
-          assign_label(map_id, source_system, target_system, nil, enabled_targets, separator, start_at_zero)
+          assign_label(
+            map_id,
+            source_system,
+            target_system,
+            nil,
+            enabled_targets,
+            separator,
+            start_at_zero
+          )
         else
           :ok
         end
@@ -116,7 +135,14 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     |> Enum.filter(fn {_kind, format} -> AutoLabel.valid_format?(format) end)
   end
 
-  defp do_auto_label(map_id, source_system, target_system, signature_eve_id, options, enabled_targets) do
+  defp do_auto_label(
+         map_id,
+         source_system,
+         target_system,
+         signature_eve_id,
+         options,
+         enabled_targets
+       ) do
     signature =
       source_system.id
       |> MapSystemSignature.by_system_id!()
@@ -129,7 +155,9 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
       separator = Map.get(options, "auto_label_separator", "")
 
       return_hole? =
-        not is_nil(SignaturesImpl.find_forward_signature(target_system.id, source_system.solar_system_id))
+        not is_nil(
+          SignaturesImpl.find_forward_signature(target_system.id, source_system.solar_system_id)
+        )
 
       if return_hole? and truthy_option?(options, "auto_label_ignore_return_hole") do
         handle_return_hole(signature, options, enabled_targets)
@@ -174,7 +202,15 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     :ok
   end
 
-  defp assign_label(map_id, source_system, target_system, signature, enabled_targets, separator, start_at_zero) do
+  defp assign_label(
+         map_id,
+         source_system,
+         target_system,
+         signature,
+         enabled_targets,
+         separator,
+         start_at_zero
+       ) do
     {primary_kind, primary_format} = List.first(enabled_targets)
 
     # A source system's label only acts as a chain prefix when that system is
@@ -182,7 +218,16 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     # AutoLabel.chain_prefix/7, so a named root (e.g. a home labeled "HTT")
     # starts fresh chains even when stale legacy signatures carry chain
     # metadata into it.
-    prefix = chain_prefix_for(map_id, source_system, primary_kind, primary_format, separator, start_at_zero)
+    prefix =
+      chain_prefix_for(
+        map_id,
+        source_system,
+        primary_kind,
+        primary_format,
+        separator,
+        start_at_zero
+      )
+
     chain_child? = prefix != ""
 
     index =
@@ -230,7 +275,14 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
 
     # A jump has no signature yet; the one linked later reuses this slot.
     if not is_nil(signature) do
-      update_signature(signature, index, prefix, separator, start_at_zero, Map.get(rendered, :temp_name))
+      update_signature(
+        signature,
+        index,
+        prefix,
+        separator,
+        start_at_zero,
+        Map.get(rendered, :temp_name)
+      )
     end
 
     Enum.each(rendered, fn {kind, value} ->
@@ -246,7 +298,16 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
   #  - for chain formats, every map system whose label parses under the
   #    prefix (catches renames and leftovers from closed holes)
   # The target system itself never counts against its own assignment.
-  defp occupied_slots(map_id, source_system, target_system, kind, format, prefix, separator, start_at_zero) do
+  defp occupied_slots(
+         map_id,
+         source_system,
+         target_system,
+         kind,
+         format,
+         prefix,
+         separator,
+         start_at_zero
+       ) do
     {:ok, systems} = WandererApp.Map.list_systems(map_id)
     systems_by_solar_id = Map.new(systems, fn system -> {system.solar_system_id, system} end)
 
@@ -279,7 +340,13 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
         system.solar_system_id == source_system.solar_system_id
     end)
     |> Enum.reduce(MapSet.new(), fn system, acc ->
-      case AutoLabel.parse_slot(format, effective_value(system, kind), prefix, separator, start_at_zero) do
+      case AutoLabel.parse_slot(
+             format,
+             effective_value(system, kind),
+             prefix,
+             separator,
+             start_at_zero
+           ) do
         {:ok, index} -> MapSet.put(acc, index)
         :error -> acc
       end
@@ -291,7 +358,10 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
       signature
       |> decode_custom_info()
       |> Map.put("bookmark_index", index)
-      |> Map.put("bookmark_index_chained", AutoLabel.render("chain_index", index, prefix, separator, start_at_zero))
+      |> Map.put(
+        "bookmark_index_chained",
+        AutoLabel.render("chain_index", index, prefix, separator, start_at_zero)
+      )
       |> Map.put(
         "bookmark_index_chained_letters",
         AutoLabel.render("chain_index_letters", index, prefix, separator, start_at_zero)
@@ -300,7 +370,8 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     updates = %{custom_info: Jason.encode!(custom_info)}
 
     updates =
-      if not is_nil(temp_name_value) and temp_name_value != "" and empty?(signature.temporary_name) do
+      if not is_nil(temp_name_value) and temp_name_value != "" and
+           empty?(signature.temporary_name) do
         Map.put(updates, :temporary_name, temp_name_value)
       else
         updates

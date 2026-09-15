@@ -185,7 +185,15 @@ defmodule WandererApp.Map.AutoLabel do
   real parent, and candidates are tried shortest label first so the parent
   is found before the subtree below the system is explored.
   """
-  def chain_prefix(system, label_fn, parents_fn, format, separator, start_at_zero, visited \\ MapSet.new()) do
+  def chain_prefix(
+        system,
+        label_fn,
+        parents_fn,
+        format,
+        separator,
+        start_at_zero,
+        visited \\ MapSet.new()
+      ) do
     label = label_fn.(system)
 
     cond do
@@ -207,7 +215,15 @@ defmodule WandererApp.Map.AutoLabel do
           |> Enum.sort_by(fn parent -> String.length(label_fn.(parent) || "") end)
           |> Enum.any?(fn parent ->
             parent_prefix =
-              chain_prefix(parent, label_fn, parents_fn, format, separator, start_at_zero, visited)
+              chain_prefix(
+                parent,
+                label_fn,
+                parents_fn,
+                format,
+                separator,
+                start_at_zero,
+                visited
+              )
 
             match?({:ok, _}, parse_slot(format, label, parent_prefix, separator, start_at_zero))
           end)
