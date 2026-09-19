@@ -4,6 +4,15 @@ Differences between [temetvince/wanderer](https://github.com/temetvince/wanderer
 upstream [wanderer-industries/wanderer](https://github.com/wanderer-industries/wanderer). Only fork changes
 are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first.
 
+## 2026-09-18
+
+### Fixed
+
+- Auto-labeling: a named root keeps starting fresh chains when one of its own depth-one children carries a
+  label that begins its name. With letter-only chains, home `HTT` next to its eighth hole `H` parsed as H's
+  slot `TT`, so home counted as a chain child and its next hole was labeled `HTTA` instead of the lowest
+  free root letter. A letter-only parent vouches only for single-letter slots.
+
 ## 2026-09-14
 
 ### Fixed

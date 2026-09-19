@@ -183,7 +183,9 @@ defmodule WandererApp.Map.AutoLabel do
   chain-carrying signatures link into it) or undirected (its wormhole
   neighbours, children included): label consistency is what identifies the
   real parent, and candidates are tried shortest label first so the parent
-  is found before the subtree below the system is explored.
+  is found before the subtree below the system is explored. Because a named
+  root's own children are candidates too, a letter-only parent only vouches
+  for a single-letter slot: "HTT" next to its child "H" stays a root.
   """
   def chain_prefix(
         system,
@@ -225,10 +227,28 @@ defmodule WandererApp.Map.AutoLabel do
                 visited
               )
 
-            match?({:ok, _}, parse_slot(format, label, parent_prefix, separator, start_at_zero))
+            vouches?(format, label, parent_prefix, separator, start_at_zero)
           end)
 
         if chain_child?, do: label, else: ""
+    end
+  end
+
+  # Whether a parent with `parent_prefix` vouches for `label` as one of its
+  # chain children. Candidates are undirected, so a named root's own
+  # depth-one children are asked too: home "HTT" next to a child labeled "H"
+  # reads as H's slot "TT" (the 540th hole). Under a letter-only parent a
+  # vouched slot must therefore be a single letter - no system has 27 holes,
+  # and a two-letter remainder is a name that happens to share the child's
+  # letter. Numeric-children formats are unambiguous: a name never parses.
+  defp vouches?(format, label, parent_prefix, separator, start_at_zero) do
+    case parse_slot(format, label, parent_prefix, separator, start_at_zero) do
+      {:ok, index} ->
+        format != "chain_letters_only" or parent_prefix == "" or
+          String.length(number_to_letters(index, start_at_zero)) == 1
+
+      :error ->
+        false
     end
   end
 
