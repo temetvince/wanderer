@@ -247,6 +247,26 @@ defmodule WandererApp.Map.AutoLabelTest do
       end
     end
 
+    test "a depth-one child sharing the named root's first letter does not adopt it" do
+      # Home "HTT" has eight holes, so one child is labeled "H". Neighbours
+      # are undirected: "HTT" must not read as H's slot "TT".
+      labels = %{home: "HTT", a: "A", h: "H", ha: "HA"}
+      neighbours = %{home: [:a, :h], a: [:home], h: [:home, :ha], ha: [:h]}
+
+      assert prefix(:home, labels, neighbours, "chain_letters_only") == ""
+      assert prefix(:h, labels, neighbours, "chain_letters_only") == "H"
+      assert prefix(:ha, labels, neighbours, "chain_letters_only") == "HA"
+
+      # The next hole from home takes the lowest free root slot: B, not HTTA.
+      occupied =
+        for label <- ["A", "H", "HA"],
+            {:ok, index} <- [AutoLabel.parse_slot("chain_letters_only", label, "", "", false)],
+            do: index
+
+      assert AutoLabel.render("chain_letters_only", AutoLabel.next_index(occupied, false), "", "", false) ==
+               "B"
+    end
+
     test "neighbour cycles through named systems still resolve" do
       labels = %{home: "HTT", staging: "STAGING", aa: "AA", aab: "AAB"}
 

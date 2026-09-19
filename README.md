@@ -23,7 +23,9 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   `C` frees the `B` slot and blocks `C` at that depth. A named root such as a
   home system labeled `HTT` starts a fresh chain (`A`, `B`, `C` - not `HTTA`):
   a system's label only acts as a chain prefix when that system is itself a
-  chain child. A chain child whose entrance has closed keeps chaining off its
+  chain child, and a name is never read as a child of its own neighbour (`HTT`
+  next to its eighth hole `H` is not H's slot `TT`). A chain child whose
+  entrance has closed keeps chaining off its
   own label (`B` still hands out `BD` after the hole from home collapses), as
   long as that label is chain-shaped: a one- or two-letter root, or a root
   followed by numeric slots. Existing labels are never overwritten, return
