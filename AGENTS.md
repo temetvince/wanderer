@@ -124,7 +124,7 @@ is deliberately not published on the host.
 - `lib/wanderer_app/map/auto_label.ex` — pure chain-label math (formats, render/parse, slot selection).
   Tested by `test/unit/auto_label_test.exs`. All invariants live here; extend this module first.
 - `lib/wanderer_app/map/server/map_server_auto_label_impl.ex` — orchestration: reads map options, detects
-  return holes and chain roots (`chain_child?`), serializes per map, writes labels/tags/temp names.
+  return holes and home-status roots (`home?`), serializes per map, writes labels/tags/temp names.
   Invoked from the `link_signature_to_system` handler in
   `lib/wanderer_app_web/live/map/event_handlers/map_signatures_event_handler.ex`.
 - Map options: defaults in `lib/wanderer_app/repositories/map_repo.ex`, whitelist and form in

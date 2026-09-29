@@ -4,14 +4,14 @@ Differences between [temetvince/wanderer](https://github.com/temetvince/wanderer
 upstream [wanderer-industries/wanderer](https://github.com/wanderer-industries/wanderer). Only fork changes
 are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first.
 
-## 2026-09-18
+## 2026-09-28
 
-### Fixed
+### Changed
 
-- Auto-labeling: a named root keeps starting fresh chains when one of its own depth-one children carries a
-  label that begins its name. With letter-only chains, home `HTT` next to its eighth hole `H` parsed as H's
-  slot `TT`, so home counted as a chain child and its next hole was labeled `HTTA` instead of the lowest
-  free root letter. A letter-only parent vouches only for single-letter slots.
+- Auto-labeling roots are explicit: a system with the Home status starts a fresh chain whatever its label
+  is, its label never occupies a slot, and it never receives a chain label itself. Every other labeled
+  system is a chain prefix, so a chain child keeps chaining off its label after its entrance closes, and a
+  named system such as `STAGING` hands out `STAGINGA` unless it is marked Home.
 
 ## 2026-09-14
 
@@ -53,30 +53,14 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
 
 - Auto-labeling fires when a tracked pilot jumps a wormhole connection, not only when a signature is linked
   on splash. The jumped-into system gets its label, tag, or temporary name immediately; a signature linked to
-  the same hole later reuses that slot for its bookmark metadata. Gate jumps never label. Chain parents are
-  resolved from wormhole connections as well as signatures, so jump-labeled systems chain correctly without
-  any signature.
+  the same hole later reuses that slot for its bookmark metadata. Gate jumps never label.
 
 ### Changed
 
 - The connection countdown leaves a connection with no known lifetime (time status 0) alone instead of
   forcing it to 24h on its first pass.
 
-### Fixed
-
-- Auto-labeling: a chain child whose entrance has closed (the signature from its parent was removed, or the
-  link never carried chain metadata) keeps chaining off its own label as long as that label is chain-shaped -
-  a one- or two-letter root, or a root followed by numeric slots. Previously such a system was treated as a
-  named root, so jumps from `B` restarted root letters and reissued `B` itself instead of `BD`.
-
 ## 2026-09-02
-
-### Fixed
-
-- Auto-labeling root detection is label-consistent and recursive: a system only acts as a chain prefix when
-  its label parses as a slot in its parent's namespace. Stale legacy signatures carrying chain metadata into
-  a named home (from the pre-fork client-side labeling era) could previously mark the home as a chain child
-  again, producing labels like `HTTA`.
 
 ### Changed
 
@@ -90,14 +74,6 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
 ### Added
 
 - `AGENTS.md` working agreement, `.markdownlint.json` (all markdown must pass it), and this changelog.
-
-## 2026-08-30
-
-### Fixed
-
-- Auto-labeling: a named root system (e.g. a home labeled `HTT`) starts a fresh chain — its holes get `A`,
-  `B`, `C` instead of `HTTA`. A system's label only acts as a chain prefix when the system is itself a
-  chain child.
 
 ## 2026-08-27
 

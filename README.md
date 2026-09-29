@@ -20,15 +20,14 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   K-space system reached through a hole gets a label while its gate
   neighbours stay unnamed. Occupied slots are derived from the
   labels currently on the map, so manual renames are respected: renaming `B` to
-  `C` frees the `B` slot and blocks `C` at that depth. A named root such as a
-  home system labeled `HTT` starts a fresh chain (`A`, `B`, `C` - not `HTTA`):
-  a system's label only acts as a chain prefix when that system is itself a
-  chain child, and a name is never read as a child of its own neighbour (`HTT`
-  next to its eighth hole `H` is not H's slot `TT`). A chain child whose
-  entrance has closed keeps chaining off its
-  own label (`B` still hands out `BD` after the hole from home collapses), as
-  long as that label is chain-shaped: a one- or two-letter root, or a root
-  followed by numeric slots. Existing labels are never overwritten, return
+  `C` frees the `B` slot and blocks `C` at that depth. Roots are explicit: a
+  system with the **Home** status starts a fresh chain (`A`, `B`, `C`)
+  whatever its label is - `HTT`, `HQ` or `C2` alike - its label never
+  occupies a slot, and it never receives a chain label itself. Every other
+  labeled system is a chain prefix, so a system named `STAGING` hands out
+  `STAGINGA` unless it is marked Home, and a chain child whose entrance has
+  closed keeps chaining off its own label (`B` still hands out `BD` after the
+  hole from home collapses). Existing labels are never overwritten, return
   holes never consume a slot, and the "Show linked signature ID as custom
   label part" display option is unaffected.
   No database schema changes: everything lives in existing JSON columns, so

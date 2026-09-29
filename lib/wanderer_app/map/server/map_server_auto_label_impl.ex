@@ -213,22 +213,11 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
        ) do
     {primary_kind, primary_format} = List.first(enabled_targets)
 
-    # A source system's label only acts as a chain prefix when that system is
-    # itself a chain child - resolved label-consistently and recursively by
-    # AutoLabel.chain_prefix/7, so a named root (e.g. a home labeled "HTT")
-    # starts fresh chains even when stale legacy signatures carry chain
-    # metadata into it.
-    prefix =
-      chain_prefix_for(
-        map_id,
-        source_system,
-        primary_kind,
-        primary_format,
-        separator,
-        start_at_zero
-      )
+    # A home system starts fresh chains whatever its label is; any other
+    # system's label is the prefix of the holes jumped from it.
+    source_home? = home?(source_system)
 
-    chain_child? = prefix != ""
+    prefix = AutoLabel.chain_prefix(effective_value(source_system, primary_kind), source_home?)
 
     index =
       case AutoLabel.parse_slot(
@@ -264,11 +253,9 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     rendered =
       Map.new(enabled_targets, fn {kind, format} ->
         kind_prefix =
-          cond do
-            kind == primary_kind -> prefix
-            chain_child? -> effective_value(source_system, kind)
-            true -> ""
-          end
+          if kind == primary_kind,
+            do: prefix,
+            else: AutoLabel.chain_prefix(effective_value(source_system, kind), source_home?)
 
         {kind, AutoLabel.render(format, index, kind_prefix, separator, start_at_zero)}
       end)
@@ -297,7 +284,8 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
   #    on the far end of its wormhole connections (siblings)
   #  - for chain formats, every map system whose label parses under the
   #    prefix (catches renames and leftovers from closed holes)
-  # The target system itself never counts against its own assignment.
+  # The target system itself never counts against its own assignment, and a
+  # home system's label is a name, never a slot.
   defp occupied_slots(
          map_id,
          source_system,
@@ -337,7 +325,8 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     |> Enum.uniq_by(& &1.solar_system_id)
     |> Enum.reject(fn system ->
       system.solar_system_id == target_system.solar_system_id or
-        system.solar_system_id == source_system.solar_system_id
+        system.solar_system_id == source_system.solar_system_id or
+        home?(system)
     end)
     |> Enum.reduce(MapSet.new(), fn system, acc ->
       case AutoLabel.parse_slot(
@@ -382,9 +371,11 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
   end
 
   # Only ever fills empty targets: a value someone set by hand (or a label
-  # assigned earlier) is never overwritten.
+  # assigned earlier) is never overwritten. A home system is a root, so it
+  # never takes a chain label either.
   defp apply_target(map_id, target_system, kind, value) do
-    if empty?(effective_value(target_system, kind)) and value != "" do
+    if empty?(effective_value(target_system, kind)) and value != "" and
+         not home?(target_system) do
       case kind do
         :tag ->
           WandererApp.Map.Server.update_system_tag(map_id, %{
@@ -415,53 +406,6 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     :ok
   end
 
-  # Wires AutoLabel.chain_prefix/7 to this map's data: labels come from the
-  # map cache; parent candidates are systems whose non-deleted signature on
-  # this map links into the given system carrying chain metadata
-  # (bookmark_index), plus its wormhole neighbours, so jump-labeled systems
-  # without any signature still resolve. Label consistency picks the real
-  # parent among the candidates.
-  defp chain_prefix_for(map_id, source_system, kind, format, separator, start_at_zero) do
-    {:ok, systems} = WandererApp.Map.list_systems(map_id)
-    by_solar_id = Map.new(systems, fn system -> {system.solar_system_id, system} end)
-    by_uuid = Map.new(systems, fn system -> {system.id, system} end)
-    map_system_uuids = MapSet.new(systems, & &1.id)
-
-    label_fn = fn solar_id ->
-      case Map.get(by_solar_id, solar_id) do
-        nil -> ""
-        system -> effective_value(system, kind)
-      end
-    end
-
-    parents_fn = fn solar_id ->
-      signature_parents =
-        solar_id
-        |> MapSystemSignature.by_linked_system_id!()
-        |> Enum.filter(fn sig ->
-          not sig.deleted and
-            MapSet.member?(map_system_uuids, sig.system_id) and
-            sig |> decode_custom_info() |> Map.has_key?("bookmark_index")
-        end)
-        |> Enum.map(fn sig -> Map.get(by_uuid, sig.system_id) end)
-        |> Enum.reject(&is_nil/1)
-        |> Enum.map(& &1.solar_system_id)
-
-      (signature_parents ++ wormhole_neighbours(map_id, solar_id))
-      |> Enum.filter(&Map.has_key?(by_solar_id, &1))
-      |> Enum.uniq()
-    end
-
-    AutoLabel.chain_prefix(
-      source_system.solar_system_id,
-      label_fn,
-      parents_fn,
-      format,
-      separator,
-      start_at_zero
-    )
-  end
-
   # Solar system ids on the far end of the wormhole connections touching
   # `solar_system_id`. Gate connections never take part in chains.
   defp wormhole_neighbours(map_id, solar_system_id) do
@@ -475,6 +419,8 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     end)
     |> Enum.uniq()
   end
+
+  defp home?(system), do: AutoLabel.home_status?(Map.get(system, :status))
 
   defp effective_value(system, :label) do
     case Jason.decode(system.labels || "") do

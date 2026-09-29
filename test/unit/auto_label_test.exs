@@ -132,165 +132,73 @@ defmodule WandererApp.Map.AutoLabelTest do
     end
   end
 
-  describe "chain_prefix/7" do
-    # Graph fixture: labels and chain-parent edges (parent -> child via a
-    # chain-carrying signature). `chain_prefix` walks parents upward.
-    defp prefix(system, labels, parents, format \\ "chain_index_letters") do
-      AutoLabel.chain_prefix(
-        system,
-        fn sys -> Map.get(labels, sys, "") end,
-        fn sys -> Map.get(parents, sys, []) end,
-        format,
-        "",
-        false
-      )
+  describe "home_status?/1" do
+    test "only the home status marks a home system" do
+      assert AutoLabel.home_status?(8)
+
+      for status <- [0, 1, 2, 3, 4, 5, 6, 7, nil] do
+        refute AutoLabel.home_status?(status)
+      end
     end
+  end
 
-    test "a named root with a stale chain signature into it stays a root" do
-      # Home "HTT" has a legacy return-hole signature from A carrying
-      # bookmark_index (the poisoning scenario), and home -> A is a real
-      # chain edge - a cycle. "HTT" parses under no parent's namespace.
-      labels = %{home: "HTT", a: "A"}
-      parents = %{home: [:a], a: [:home]}
-
-      assert prefix(:home, labels, parents) == ""
-      assert prefix(:a, labels, parents) == "A"
-    end
-
-    test "depth-one systems chain off the root, including after renames" do
-      labels = %{home: "HTT", c: "C"}
-      parents = %{c: [:home]}
-
-      # Home is a root (prefix ""), so "C" parses as a root slot: chain child.
-      assert prefix(:c, labels, parents) == "C"
-    end
-
-    test "deeper chain nodes parse under their parent's label" do
-      labels = %{home: "HTT", a: "A", a2: "A2"}
-      parents = %{a: [:home], a2: [:a]}
-
-      assert prefix(:a2, labels, parents) == "A2"
-    end
-
-    test "a named mid-map system with no valid parent namespace is a root" do
-      labels = %{staging: "STAGING", a: "A"}
-      parents = %{staging: [:a], a: []}
-
-      assert prefix(:staging, labels, parents) == ""
-    end
-
-    test "unlabeled systems are roots" do
-      assert prefix(:x, %{}, %{x: [:y]}) == ""
-    end
-
-    test "letter-only chains resolve the same way" do
-      labels = %{home: "HTT", a: "A", aa: "AA"}
-      parents = %{home: [:a], a: [:home], aa: [:a]}
-
-      assert prefix(:home, labels, parents, "chain_letters_only") == ""
-      assert prefix(:a, labels, parents, "chain_letters_only") == "A"
-      assert prefix(:aa, labels, parents, "chain_letters_only") == "AA"
-    end
-
-    test "a chain child whose entrance closed keeps chaining off its label" do
-      # Home -> B collapsed and the signature is gone, so B has no parent.
-      # B, BA, BB, BC are still on the map and B's label is a root slot.
-      labels = %{b: "B", ba: "BA", bb: "BB", bc: "BC"}
-      parents = %{b: [], ba: [:b], bb: [:b], bc: [:b]}
-
-      assert prefix(:b, labels, parents, "chain_letters_only") == "B"
-      assert prefix(:ba, labels, parents, "chain_letters_only") == "BA"
-
-      occupied =
-        for label <- ["BA", "BB", "BC"],
-            {:ok, index} = AutoLabel.parse_slot("chain_letters_only", label, "B", "", false),
-            do: index
-
-      assert AutoLabel.render("chain_letters_only", AutoLabel.next_index(occupied, false), "B", "", false) ==
-               "BD"
-    end
-
-    test "orphaned numeric-children nodes are chain-shaped at any depth" do
-      labels = %{a21: "A21", n121: "121"}
-      parents = %{}
-
-      assert prefix(:a21, labels, parents, "chain_index_letters") == "A21"
-      assert prefix(:n121, labels, parents, "chain_index") == "121"
-
-      dashed = %{a21: "A-2-1", n121: "1-2-1"}
-      label_fn = fn sys -> Map.get(dashed, sys, "") end
-      parents_fn = fn _sys -> [] end
-
-      assert AutoLabel.chain_prefix(:a21, label_fn, parents_fn, "chain_index_letters", "-", false) == "A-2-1"
-      assert AutoLabel.chain_prefix(:n121, label_fn, parents_fn, "chain_index", "-", false) == "1-2-1"
-      assert AutoLabel.chain_prefix(:a21, label_fn, parents_fn, "chain_index_letters", "", false) == ""
-    end
-
-    test "undirected neighbour graphs resolve like directed parent graphs" do
-      # Jump-labeled systems have no signatures, so parents come from
-      # wormhole connections: every system lists all its neighbours,
-      # children included. Home is a named root.
-      labels = %{home: "HTT", a: "A", aa: "AA", aab: "AAB", aaba: "AABA", b: "B"}
-
-      neighbours = %{
-        home: [:a, :b],
-        a: [:home, :aa],
-        aa: [:a, :aab],
-        aab: [:aa, :aaba],
-        aaba: [:aab],
-        b: [:home]
-      }
-
-      for {system, expected} <- [home: "", a: "A", aa: "AA", aab: "AAB", aaba: "AABA", b: "B"] do
-        assert prefix(system, labels, neighbours, "chain_letters_only") == expected,
-               "#{system} expected #{inspect(expected)}"
+  describe "chain_prefix/2" do
+    test "a home system is a root whatever its label is" do
+      for label <- ["HTT", "HQ", "H", "B", "C2", "A21", "STAGING", "", nil] do
+        assert AutoLabel.chain_prefix(label, true) == "",
+               "home labeled #{inspect(label)} must be a root"
       end
     end
 
-    test "a depth-one child sharing the named root's first letter does not adopt it" do
-      # Home "HTT" has eight holes, so one child is labeled "H". Neighbours
-      # are undirected: "HTT" must not read as H's slot "TT".
-      labels = %{home: "HTT", a: "A", h: "H", ha: "HA"}
-      neighbours = %{home: [:a, :h], a: [:home], h: [:home, :ha], ha: [:h]}
+    test "unlabeled systems are roots" do
+      assert AutoLabel.chain_prefix("", false) == ""
+      assert AutoLabel.chain_prefix("  ", false) == ""
+      assert AutoLabel.chain_prefix(nil, false) == ""
+    end
 
-      assert prefix(:home, labels, neighbours, "chain_letters_only") == ""
-      assert prefix(:h, labels, neighbours, "chain_letters_only") == "H"
-      assert prefix(:ha, labels, neighbours, "chain_letters_only") == "HA"
+    test "every other labeled system is a chain prefix" do
+      assert AutoLabel.chain_prefix("A", false) == "A"
+      assert AutoLabel.chain_prefix("A21", false) == "A21"
+      assert AutoLabel.chain_prefix("AAB", false) == "AAB"
+      assert AutoLabel.chain_prefix(" B ", false) == "B"
+      assert AutoLabel.chain_prefix("STAGING", false) == "STAGING"
+    end
 
-      # The next hole from home takes the lowest free root slot: B, not HTTA.
+    test "holes from a home with a short name take root slots" do
+      # Home is labeled "HQ" and already has holes A and H. Its own label is
+      # never offered as an occupied slot, so the next hole is B, not HQA.
+      prefix = AutoLabel.chain_prefix("HQ", true)
+
       occupied =
         for label <- ["A", "H", "HA"],
-            {:ok, index} <- [AutoLabel.parse_slot("chain_letters_only", label, "", "", false)],
+            {:ok, index} <- [AutoLabel.parse_slot("chain_letters_only", label, prefix, "", false)],
             do: index
 
-      assert AutoLabel.render("chain_letters_only", AutoLabel.next_index(occupied, false), "", "", false) ==
-               "B"
+      assert AutoLabel.render(
+               "chain_letters_only",
+               AutoLabel.next_index(occupied, false),
+               prefix,
+               "",
+               false
+             ) == "B"
     end
 
-    test "neighbour cycles through named systems still resolve" do
-      labels = %{home: "HTT", staging: "STAGING", aa: "AA", aab: "AAB"}
+    test "a chain child whose entrance closed keeps chaining off its label" do
+      # Home -> B collapsed. B, BA, BB, BC are still on the map.
+      prefix = AutoLabel.chain_prefix("B", false)
 
-      neighbours = %{
-        home: [:staging, :aa],
-        staging: [:home, :aab],
-        aa: [:home, :aab],
-        aab: [:aa, :staging]
-      }
+      occupied =
+        for label <- ["BA", "BB", "BC"],
+            {:ok, index} <- [AutoLabel.parse_slot("chain_letters_only", label, prefix, "", false)],
+            do: index
 
-      assert prefix(:aab, labels, neighbours, "chain_letters_only") == "AAB"
-      assert prefix(:staging, labels, neighbours, "chain_letters_only") == ""
-      assert prefix(:home, labels, neighbours, "chain_letters_only") == ""
-    end
-
-    test "named roots never qualify as orphaned chain nodes" do
-      labels = %{home: "HTT", staging: "STAGING", deep: "ABA", odd: "A2X"}
-      parents = %{}
-
-      assert prefix(:home, labels, parents, "chain_letters_only") == ""
-      assert prefix(:staging, labels, parents, "chain_index_letters") == ""
-      # Letter-only chains are only decidable at depth one without a parent.
-      assert prefix(:deep, labels, parents, "chain_letters_only") == ""
-      assert prefix(:odd, labels, parents, "chain_index_letters") == ""
+      assert AutoLabel.render(
+               "chain_letters_only",
+               AutoLabel.next_index(occupied, false),
+               prefix,
+               "",
+               false
+             ) == "BD"
     end
   end
 

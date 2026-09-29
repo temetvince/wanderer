@@ -8,6 +8,10 @@ defmodule WandererApp.Map.AutoLabel do
   among that source system's existing children. A system with no label starts
   a new root chain (letters at depth one for letter formats).
 
+  Roots are explicit: a system with the home status is a root whatever its
+  label says, and it is the only kind of labeled root. Every other labeled
+  system is a chain prefix. See `chain_prefix/2`.
+
   Occupied slots are parsed from the labels currently on the map rather than
   from stored bookmark metadata, so manual renames are respected: renaming a
   system from B to C frees the B slot and blocks C from being handed out
@@ -24,6 +28,12 @@ defmodule WandererApp.Map.AutoLabel do
 
   @chain_formats ~w(chain_index chain_index_letters chain_letters_only)
   @formats ~w(index index_letter) ++ @chain_formats
+
+  # Mirrors the map system `status` values (see WandererApp.Api.MapSystem).
+  @home_status 8
+
+  @doc "Whether a map system `status` value marks the system as home."
+  def home_status?(status), do: status == @home_status
 
   @doc "All supported (enabled) format values."
   def formats, do: @formats
@@ -147,9 +157,8 @@ defmodule WandererApp.Map.AutoLabel do
   def parse_slot(_format, _label, _prefix, _separator, _start_at_zero), do: :error
 
   # Letter slots are at most two letters (slot 702 is "ZZ"; no depth ever has
-  # more holes). Longer letter strings are names, not slots - this is what
-  # keeps "HTT" or "STAGING" from parsing as a chain slot and lets
-  # chain_prefix/7 tell named roots apart from chain children.
+  # more holes). Longer letter strings are names, not slots, so a system
+  # named "STAGING" never occupies a root slot.
   @max_letter_slot_length 2
 
   defp parse_letter_slot(letters, start_at_zero) do
@@ -161,121 +170,19 @@ defmodule WandererApp.Map.AutoLabel do
   end
 
   @doc """
-  Resolves the chain prefix a system contributes to holes jumped from it:
-  its label when the system is a chain child, `""` when it is a root.
+  Resolves the chain prefix a system contributes to holes jumped from it,
+  given its effective `label` and whether it has the home status.
 
-  A system is a chain child only when its label parses as a slot under the
-  prefix of some parent (a system whose chain-carrying signature links into
-  it) - resolved recursively, so stale chain metadata pointing at a named
-  root (e.g. a legacy return-hole signature into a home labeled "HTT") can
-  never turn the root into a chain child: "HTT" parses under no parent's
-  namespace. Cycles resolve by treating the revisited system as a root.
-
-  A system whose label is unmistakably chain-shaped - see
-  `orphan_chain_label?/4` - acts as a chain prefix without consulting any
-  parent, so a chain keeps growing as `BD`, `BE` after the hole from home to
-  `B` closes, instead of restarting root letters from `B`. Only labels that
-  could also be names (letter-only labels of three letters or more) need a
-  parent to vouch for them.
-
-  `label_fn` returns a system's effective label; `parents_fn` returns the
-  candidate parents of a system. Candidates may be directed (systems whose
-  chain-carrying signatures link into it) or undirected (its wormhole
-  neighbours, children included): label consistency is what identifies the
-  real parent, and candidates are tried shortest label first so the parent
-  is found before the subtree below the system is explored. Because a named
-  root's own children are candidates too, a letter-only parent only vouches
-  for a single-letter slot: "HTT" next to its child "H" stays a root.
+  A home system is a root: it contributes `""` whatever its label is, so its
+  holes take root slots (`A`, `B`, `C`). Every other system contributes its
+  trimmed label, so an unlabeled system is a root too and any labeled one is
+  a chain prefix - including after the hole it was reached through closes.
   """
-  def chain_prefix(
-        system,
-        label_fn,
-        parents_fn,
-        format,
-        separator,
-        start_at_zero,
-        visited \\ MapSet.new()
-      ) do
-    label = label_fn.(system)
+  def chain_prefix(label, home?)
 
-    cond do
-      label in [nil, ""] ->
-        ""
-
-      orphan_chain_label?(format, label, separator, start_at_zero) ->
-        label
-
-      MapSet.member?(visited, system) ->
-        ""
-
-      true ->
-        visited = MapSet.put(visited, system)
-
-        chain_child? =
-          system
-          |> parents_fn.()
-          |> Enum.sort_by(fn parent -> String.length(label_fn.(parent) || "") end)
-          |> Enum.any?(fn parent ->
-            parent_prefix =
-              chain_prefix(
-                parent,
-                label_fn,
-                parents_fn,
-                format,
-                separator,
-                start_at_zero,
-                visited
-              )
-
-            vouches?(format, label, parent_prefix, separator, start_at_zero)
-          end)
-
-        if chain_child?, do: label, else: ""
-    end
-  end
-
-  # Whether a parent with `parent_prefix` vouches for `label` as one of its
-  # chain children. Candidates are undirected, so a named root's own
-  # depth-one children are asked too: home "HTT" next to a child labeled "H"
-  # reads as H's slot "TT" (the 540th hole). Under a letter-only parent a
-  # vouched slot must therefore be a single letter - no system has 27 holes,
-  # and a two-letter remainder is a name that happens to share the child's
-  # letter. Numeric-children formats are unambiguous: a name never parses.
-  defp vouches?(format, label, parent_prefix, separator, start_at_zero) do
-    case parse_slot(format, label, parent_prefix, separator, start_at_zero) do
-      {:ok, index} ->
-        format != "chain_letters_only" or parent_prefix == "" or
-          String.length(number_to_letters(index, start_at_zero)) == 1
-
-      :error ->
-        false
-    end
-  end
-
-  # Whether a label with no live chain parent is unmistakably a chain label
-  # rather than a name. A root slot qualifies for every format ("B", "12").
-  # The numeric-children formats are decidable at any depth - a root slot
-  # followed by digit slots ("A21", "A-2-1") - because names never look like
-  # that. Letter-only chains are only decidable at depth one: "HTT" could be
-  # H > TT, and refusing it is exactly what keeps named roots from chaining.
-  defp orphan_chain_label?(format, label, separator, start_at_zero) do
-    label = String.trim(label)
-    sep = Regex.escape(separator)
-
-    cond do
-      match?({:ok, _}, parse_slot(format, label, "", separator, start_at_zero)) ->
-        true
-
-      format == "chain_index" ->
-        Regex.match?(~r/^\d+(?:#{sep}\d+)+$/, label)
-
-      format == "chain_index_letters" ->
-        Regex.match?(~r/^[A-Za-z]{1,2}(?:#{sep}\d+)+$/, label)
-
-      true ->
-        false
-    end
-  end
+  def chain_prefix(_label, true), do: ""
+  def chain_prefix(nil, _home?), do: ""
+  def chain_prefix(label, _home?), do: String.trim(label)
 
   @doc """
   Returns the lowest free slot index given the occupied set (an Enumerable of
