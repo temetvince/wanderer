@@ -4,6 +4,13 @@ Differences between [temetvince/wanderer](https://github.com/temetvince/wanderer
 upstream [wanderer-industries/wanderer](https://github.com/wanderer-industries/wanderer). Only fork changes
 are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first.
 
+## 2026-10-01
+
+### Changed
+
+- The manual custom label input (the "Edit label" dialog and System settings) accepts 19 characters instead
+  of upstream's 5, so labels as long as the auto-assigned chain labels can be typed and edited by hand.
+
 ## 2026-09-28
 
 ### Changed

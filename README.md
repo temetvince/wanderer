@@ -29,7 +29,9 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   closed keeps chaining off its own label (`B` still hands out `BD` after the
   hole from home collapses). Existing labels are never overwritten, return
   holes never consume a slot, and the "Show linked signature ID as custom
-  label part" display option is unaffected.
+  label part" display option is unaffected. The manual custom label input
+  accepts 19 characters (upstream: 5), so a deep chain label can be typed or
+  edited by hand.
   No database schema changes: everything lives in existing JSON columns, so
   upstream migrations continue to apply cleanly.
 - **Data-driven wormhole lifetimes.** A new wormhole connection's lifetime comes from static EVE data

@@ -114,7 +114,7 @@ export const SystemCustomLabelDialog = ({ systemId, visible, setVisible }: Syste
                   aria-describedby="username-help"
                   autoComplete="off"
                   value={label}
-                  maxLength={5}
+                  maxLength={19}
                   onChange={e => setLabel(e.target.value)}
                   // @ts-expect-error
                   ref={inputRef}
