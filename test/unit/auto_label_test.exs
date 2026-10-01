@@ -134,9 +134,10 @@ defmodule WandererApp.Map.AutoLabelTest do
 
   describe "home_status?/1" do
     test "only the home status marks a home system" do
-      assert AutoLabel.home_status?(8)
+      # STATUSES.home in assets/js/hooks/Mapper/components/map/constants.ts
+      assert AutoLabel.home_status?(1)
 
-      for status <- [0, 1, 2, 3, 4, 5, 6, 7, nil] do
+      for status <- [0, 2, 3, 4, 5, 6, 7, 8, nil] do
         refute AutoLabel.home_status?(status)
       end
     end

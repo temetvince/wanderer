@@ -29,8 +29,10 @@ defmodule WandererApp.Map.AutoLabel do
   @chain_formats ~w(chain_index chain_index_letters chain_letters_only)
   @formats ~w(index index_letter) ++ @chain_formats
 
-  # Mirrors the map system `status` values (see WandererApp.Api.MapSystem).
-  @home_status 8
+  # The value the map UI writes for "Home": mirrors the STATUSES enum in
+  # assets/js/hooks/Mapper/components/map/constants.ts, which is the only
+  # writer of `status` that knows about home.
+  @home_status 1
 
   @doc "Whether a map system `status` value marks the system as home."
   def home_status?(status), do: status == @home_status
