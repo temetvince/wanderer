@@ -4,6 +4,17 @@ Differences between [temetvince/wanderer](https://github.com/temetvince/wanderer
 upstream [wanderer-industries/wanderer](https://github.com/wanderer-industries/wanderer). Only fork changes
 are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first.
 
+## 2026-10-06
+
+### Fixed
+
+- A system that appears through tracking (jump or warp into an unmapped system) or from the add-system
+  dialog without coordinates is never drawn on top of an existing system. Placement
+  (`WandererApp.Map.SystemPlacement`) checks candidates against the systems the map actually draws instead
+  of the spatial index upstream keeps in a garbage-collected cache; once that index was evicted after a quiet
+  spell, the newcomer landed on the neighbour of the system it was entered from, and under a locked home it
+  was unreachable for everyone without permission to unlock and move home.
+
 ## 2026-10-01
 
 ### Changed

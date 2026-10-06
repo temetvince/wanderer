@@ -1055,12 +1055,18 @@ defmodule WandererApp.Map.Server.SystemsImpl do
   defp maybe_update_temporary_name(system, _temporary_name),
     do: system
 
-  defp calc_new_system_position(map_id, old_location, rtree_name, opts),
-    do:
-      {:ok,
-       map_id
-       |> WandererApp.Map.find_system_by_location(old_location)
-       |> WandererApp.Map.PositionCalculator.get_new_system_position(rtree_name, opts)}
+  # Placement is decided from the map state rather than the cached r-tree; see
+  # WandererApp.Map.SystemPlacement. The r-tree is still maintained for upstream parity.
+  defp calc_new_system_position(map_id, old_location, _rtree_name, opts) do
+    anchor = WandererApp.Map.find_system_by_location(map_id, old_location)
+
+    occupied =
+      map_id
+      |> WandererApp.Map.list_systems!()
+      |> WandererApp.Map.SystemPlacement.occupied_boxes()
+
+    {:ok, WandererApp.Map.SystemPlacement.find(anchor, occupied, opts)}
+  end
 
   defp update_system(
          map_id,

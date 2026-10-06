@@ -127,6 +127,11 @@ is deliberately not published on the host.
   return holes and home-status roots (`home?`), serializes per map, writes labels/tags/temp names.
   Invoked from the `link_signature_to_system` handler in
   `lib/wanderer_app_web/live/map/event_handlers/map_signatures_event_handler.ex`.
+- `lib/wanderer_app/map/system_placement.ex` — where a system added without coordinates is drawn. Pure:
+  takes the anchor system, the boxes of every drawn system (from `WandererApp.Map.list_systems!/1`) and the
+  map options; reuses upstream's ring order from `PositionCalculator.get_available_positions/4`. Called from
+  `calc_new_system_position` in `map_server_systems_impl.ex`. Tested by `test/unit/system_placement_test.exs`.
+  The upstream r-tree (`WandererApp.Map.CacheRTree`) is kept up to date but no longer decides placement.
 - Map options: defaults in `lib/wanderer_app/repositories/map_repo.ex`, whitelist and form in
   `lib/wanderer_app_web/live/maps/maps_live.ex` + `.html.heex`. Options are a JSON blob on the map record.
 - Client-side labeling was removed on purpose; `assets/js/hooks/Mapper/helpers/bookmarkFormatHelper.ts` now

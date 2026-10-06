@@ -58,6 +58,14 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   "Include Thera connections" off no route passes through Thera at all, not even through Thera connections
   mapped on the map; only a route that starts in Thera may leave it. Upstream only withheld the EVE-Scout
   connections, so a mapped Thera still carried routes.
+- **New systems never land on an existing one.** A system that appears through tracking (a jump or a warp
+  into an unmapped system) or from the add-system dialog without coordinates is placed by
+  `WandererApp.Map.SystemPlacement`, which checks each candidate spot against the systems the map actually
+  draws and takes the first one that overlaps none of them, walking outward ring by ring in the order the
+  map's layout option prefers. Upstream checks only a spatial index kept in a garbage-collected cache; once
+  that index is evicted after a quiet spell, every spot counts as free and the newcomer is drawn directly on
+  top of the neighbour of the system it was entered from, where a locked home hides it from everyone who
+  cannot unlock and move home.
 - **`Dockerfile.test`** for running the Elixir test suite in Docker (see below).
 
 The companion fork [temetvince/eve-route-builder](https://github.com/temetvince/eve-route-builder)
