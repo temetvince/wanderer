@@ -203,6 +203,76 @@ defmodule WandererApp.Map.AutoLabelTest do
     end
   end
 
+  describe "connected_systems/2" do
+    test "a system with no connections is connected only to itself" do
+      assert AutoLabel.connected_systems(1, []) == MapSet.new([1])
+      assert AutoLabel.connected_systems(1, [{2, 3}]) == MapSet.new([1])
+    end
+
+    test "reachability is transitive and ignores connection direction" do
+      connections = [{1, 2}, {3, 2}, {3, 4}, {5, 6}]
+
+      assert AutoLabel.connected_systems(1, connections) == MapSet.new([1, 2, 3, 4])
+      assert AutoLabel.connected_systems(4, connections) == MapSet.new([1, 2, 3, 4])
+      assert AutoLabel.connected_systems(6, connections) == MapSet.new([5, 6])
+    end
+
+    test "cycles and duplicate connections terminate" do
+      connections = [{1, 2}, {2, 3}, {3, 1}, {1, 2}, {2, 1}]
+
+      assert AutoLabel.connected_systems(1, connections) == MapSet.new([1, 2, 3])
+    end
+
+    test "a labeled system disconnected from home does not block its slot" do
+      # Home (1) has holes to A (2) and B (3). A system labeled C (4) floats
+      # on the map with no connection to anything. The next hole from home is
+      # C, not D.
+      home = 1
+      systems = [{2, "A"}, {3, "B"}, {4, "C"}]
+      connections = [{home, 2}, {home, 3}]
+      connected = AutoLabel.connected_systems(home, connections)
+      prefix = AutoLabel.chain_prefix("HQ", true)
+
+      occupied =
+        for {solar_id, label} <- systems,
+            MapSet.member?(connected, solar_id),
+            {:ok, index} <- [AutoLabel.parse_slot("chain_letters_only", label, prefix, "", false)],
+            do: index
+
+      assert AutoLabel.render(
+               "chain_letters_only",
+               AutoLabel.next_index(occupied, false),
+               prefix,
+               "",
+               false
+             ) == "C"
+    end
+
+    test "a stale chain label off the chain does not skip its slot" do
+      # Home (1) -> B (2) -> BA (3), BB (4). A system still labeled BC (5) is
+      # left over from a closed hole and is no longer connected to anything.
+      # The third hole from B is BC, not BD.
+      systems = [{2, "B"}, {3, "BA"}, {4, "BB"}, {5, "BC"}]
+      connections = [{1, 2}, {2, 3}, {2, 4}]
+      connected = AutoLabel.connected_systems(2, connections)
+      prefix = AutoLabel.chain_prefix("B", false)
+
+      occupied =
+        for {solar_id, label} <- systems,
+            MapSet.member?(connected, solar_id),
+            {:ok, index} <- [AutoLabel.parse_slot("chain_letters_only", label, prefix, "", false)],
+            do: index
+
+      assert AutoLabel.render(
+               "chain_letters_only",
+               AutoLabel.next_index(occupied, false),
+               prefix,
+               "",
+               false
+             ) == "BC"
+    end
+  end
+
   describe "next_index/2" do
     test "returns the lowest free slot" do
       assert AutoLabel.next_index([], false) == 1

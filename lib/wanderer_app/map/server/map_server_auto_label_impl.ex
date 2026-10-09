@@ -282,10 +282,14 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
   # Occupied slots are parsed from labels actually in use on the map:
   #  - systems linked from the source system's other signatures, and systems
   #    on the far end of its wormhole connections (siblings)
-  #  - for chain formats, every map system whose label parses under the
-  #    prefix (catches renames and leftovers from closed holes)
-  # The target system itself never counts against its own assignment, and a
-  # home system's label is a name, never a slot.
+  #  - for chain formats, every system connected to the source system (over
+  #    any chain of drawn connections) whose label parses under the prefix
+  #    (catches renames and leftovers from closed holes within the chain)
+  # A labeled system with no connection path to the source is not part of its
+  # chain and never blocks a slot, so a stale `C` left floating next to home
+  # does not stop the next hole from home from becoming `C`. The target system
+  # itself never counts against its own assignment, and a home system's label
+  # is a name, never a slot.
   defp occupied_slots(
          map_id,
          source_system,
@@ -316,7 +320,8 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
 
     chain_systems =
       if AutoLabel.chained?(format) do
-        systems
+        connected = connected_solar_ids(map_id, source_system.solar_system_id)
+        Enum.filter(systems, fn system -> MapSet.member?(connected, system.solar_system_id) end)
       else
         []
       end
@@ -404,6 +409,20 @@ defmodule WandererApp.Map.Server.AutoLabelImpl do
     end
 
     :ok
+  end
+
+  # Solar system ids reachable from `solar_system_id` over any chain of the
+  # map's connections, gates included: a gate keeps a system attached to the
+  # chain even though jumping it never labels.
+  defp connected_solar_ids(map_id, solar_system_id) do
+    edges =
+      map_id
+      |> WandererApp.Map.list_connections!()
+      |> Enum.map(fn connection ->
+        {connection.solar_system_source, connection.solar_system_target}
+      end)
+
+    AutoLabel.connected_systems(solar_system_id, edges)
   end
 
   # Solar system ids on the far end of the wormhole connections touching

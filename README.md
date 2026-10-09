@@ -20,7 +20,11 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   K-space system reached through a hole gets a label while its gate
   neighbours stay unnamed. Occupied slots are derived from the
   labels currently on the map, so manual renames are respected: renaming `B` to
-  `C` frees the `B` slot and blocks `C` at that depth. Roots are explicit: a
+  `C` frees the `B` slot and blocks `C` at that depth. Only systems connected
+  to the one being jumped from (over any chain of drawn connections) count: a
+  labeled system floating on the map with no path to the chain, such as a
+  leftover `C` next to home or a stale `BC`, never blocks its slot from being
+  handed out again. Roots are explicit: a
   system with the **Home** status starts a fresh chain (`A`, `B`, `C`)
   whatever its label is - `HTT`, `HQ` or `C2` alike - its label never
   occupies a slot, and it never receives a chain label itself. Every other

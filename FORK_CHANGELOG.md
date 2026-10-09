@@ -4,6 +4,15 @@ Differences between [temetvince/wanderer](https://github.com/temetvince/wanderer
 upstream [wanderer-industries/wanderer](https://github.com/wanderer-industries/wanderer). Only fork changes
 are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first.
 
+## 2026-10-09
+
+### Fixed
+
+- Auto-labeling only treats labels of systems connected to the source system (over any chain of drawn
+  connections) as occupied slots. A labeled system with no path to the chain, such as a `C` left floating next
+  to home or a stale `BC` from a closed hole, no longer blocks that label: the next hole from home becomes `C`
+  and the third hole from `B` becomes `BC` instead of skipping to `D` and `BD`.
+
 ## 2026-10-06
 
 ### Fixed

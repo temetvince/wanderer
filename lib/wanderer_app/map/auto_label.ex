@@ -15,7 +15,9 @@ defmodule WandererApp.Map.AutoLabel do
   Occupied slots are parsed from the labels currently on the map rather than
   from stored bookmark metadata, so manual renames are respected: renaming a
   system from B to C frees the B slot and blocks C from being handed out
-  again at that depth.
+  again at that depth. Only systems connected to the source system compete
+  for its slots (see `connected_systems/2`): a labeled system left on the map
+  after its chain closed never blocks its label from being handed out again.
 
   Formats:
 
@@ -185,6 +187,40 @@ defmodule WandererApp.Map.AutoLabel do
   def chain_prefix(_label, true), do: ""
   def chain_prefix(nil, _home?), do: ""
   def chain_prefix(label, _home?), do: String.trim(label)
+
+  @doc """
+  Returns the set of solar system ids reachable from `start` over
+  `connections`, including `start` itself. Each connection is a
+  `{solar_system_a, solar_system_b}` pair; direction is ignored, and the
+  connection kind plays no part: any drawn connection keeps a system attached
+  to the chain even though gate jumps never label.
+
+  This is the population whose labels count as occupied slots when a hole is
+  jumped from `start`. A system off this component is not part of the chain,
+  so its label (a leftover from a closed hole, or a chain that was never
+  connected to home) is free to be handed out again.
+  """
+  def connected_systems(start, connections) do
+    neighbours =
+      Enum.reduce(connections, %{}, fn {a, b}, acc ->
+        acc
+        |> Map.update(a, [b], &[b | &1])
+        |> Map.update(b, [a], &[a | &1])
+      end)
+
+    do_connected_systems([start], MapSet.new([start]), neighbours)
+  end
+
+  defp do_connected_systems([], seen, _neighbours), do: seen
+
+  defp do_connected_systems([current | rest], seen, neighbours) do
+    unseen =
+      neighbours
+      |> Map.get(current, [])
+      |> Enum.reject(&MapSet.member?(seen, &1))
+
+    do_connected_systems(unseen ++ rest, MapSet.union(seen, MapSet.new(unseen)), neighbours)
+  end
 
   @doc """
   Returns the lowest free slot index given the occupied set (an Enumerable of
