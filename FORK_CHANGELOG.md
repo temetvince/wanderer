@@ -12,6 +12,11 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
   only the custom label (set and clear); upstream's predefined labels (`A`, `B`, `C`, `1`, `2`, `3`) are
   hidden, so a system's label is always either the server-assigned chain label or one typed by hand. With
   auto-labeling disabled the submenu is upstream's. The setting is read when the map loads.
+- New map option "Clear system status on removal" (Map Settings → General, off by default). When on,
+  removing a system from the map clears its status unless the system has a custom name; a custom-named
+  system keeps its status and shows it again when it is drawn again. Enabling it asks for confirmation and
+  then clears the status of every unnamed system the map already has, drawn or not. Upstream keeps every
+  status across removal.
 
 ## 2026-10-09
 

@@ -43,6 +43,16 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   setting takes effect on the next map load.
   No database schema changes: everything lives in existing JSON columns, so
   upstream migrations continue to apply cleanly.
+- **System status outlives removal only for named systems** (map option, off
+  by default). With "Clear system status on removal" enabled in
+  **Map Settings → General**, removing a system from the map (by hand or by
+  the inactivity cleanup) clears its status unless the system has a custom
+  name, in which case the status stays and is back when the system is drawn
+  again. Enabling the option asks for confirmation and then clears the status
+  of every unnamed system the map already has, drawn or not, so existing maps
+  start clean. Upstream keeps every status. A system is custom named when its
+  name differs from the solar system's default name; the rule lives in
+  `WandererApp.Map.SystemStatus`.
 - **Data-driven wormhole lifetimes.** A new wormhole connection's lifetime comes from static EVE data
   instead of a guess by system class: a frigate hole is 4.5h; otherwise the source system's static that leads
   to the target's class, then the target's static that leads back (the K162 side), then every wandering type

@@ -132,6 +132,12 @@ is deliberately not published on the host.
   map options; reuses upstream's ring order from `PositionCalculator.get_available_positions/4`. Called from
   `calc_new_system_position` in `map_server_systems_impl.ex`. Tested by `test/unit/system_placement_test.exs`.
   The upstream r-tree (`WandererApp.Map.CacheRTree`) is kept up to date but no longer decides placement.
+- `lib/wanderer_app/map/system_status.ex` — pure rule for whether a system keeps its `status` when it
+  leaves the map (only custom-named systems do) behind the `clear_status_on_removal` map option. Applied
+  in `delete_systems` in `map_server_systems_impl.ex`, which also serves the inactivity cleanup;
+  `lib/wanderer_app/map/system_status_reset.ex` is the one-time wipe run when the option is enabled from
+  the map settings page (`toggle_clear_status_on_removal` in `maps_live.ex`). Tested by
+  `test/unit/system_status_test.exs`.
 - Map options: defaults in `lib/wanderer_app/repositories/map_repo.ex`, whitelist and form in
   `lib/wanderer_app_web/live/maps/maps_live.ex` + `.html.heex`. Options are a JSON blob on the map record.
 - Client-side labeling was removed on purpose; `assets/js/hooks/Mapper/helpers/bookmarkFormatHelper.ts` now

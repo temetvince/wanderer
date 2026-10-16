@@ -18,7 +18,8 @@ defmodule WandererApp.MapRepo do
     "auto_label_start_at_zero" => "false",
     "auto_label_ignore_return_hole" => "true",
     "auto_label_return_hole_symbol" => "",
-    "auto_label_separator" => ""
+    "auto_label_separator" => "",
+    "clear_status_on_removal" => "false"
   }
 
   def get(map_id, relationships \\ []) do

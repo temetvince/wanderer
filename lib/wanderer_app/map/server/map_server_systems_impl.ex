@@ -329,12 +329,21 @@ defmodule WandererApp.Map.Server.SystemsImpl do
       |> Enum.filter(fn system -> not is_nil(system) && not system.locked end)
       |> Enum.map(&{&1.solar_system_id, &1.id})
 
+    # Fork: with the map option on, an unnamed system loses its status here.
+    clear_status? =
+      case WandererApp.Map.get_options(map_id) do
+        {:ok, options} -> WandererApp.Map.SystemStatus.enabled?(options)
+        _ -> false
+      end
+
     filtered_ids
     |> Enum.each(fn {solar_system_id, system_id} ->
       map_id
       |> WandererApp.MapSystemRepo.remove_from_map(solar_system_id)
       |> case do
-        {:ok, _result} ->
+        {:ok, removed_system} ->
+          if clear_status?, do: clear_status_unless_custom_named(removed_system)
+
           :ok = WandererApp.Map.remove_system(map_id, solar_system_id)
           @ddrt.delete([solar_system_id], "rtree_#{map_id}")
           Impl.broadcast!(map_id, :systems_removed, [solar_system_id])
@@ -378,6 +387,28 @@ defmodule WandererApp.Map.Server.SystemsImpl do
       end
     end)
   end
+
+  defp clear_status_unless_custom_named(%{solar_system_id: solar_system_id} = system) do
+    default_name = WandererApp.Map.SystemStatusReset.default_name(solar_system_id)
+
+    if WandererApp.Map.SystemStatus.clear?(system, default_name) do
+      system
+      |> WandererApp.MapSystemRepo.update_status(%{status: WandererApp.Map.SystemStatus.clear()})
+      |> case do
+        {:ok, _system} ->
+          :ok
+
+        error ->
+          Logger.error(
+            "Failed to clear status of removed system #{solar_system_id}: #{inspect(error)}"
+          )
+      end
+    end
+
+    :ok
+  end
+
+  defp clear_status_unless_custom_named(_system), do: :ok
 
   defp track_systems_removed(map_id, user_id, character_id, removed_solar_system_ids)
        when not is_nil(user_id) and not is_nil(character_id) do

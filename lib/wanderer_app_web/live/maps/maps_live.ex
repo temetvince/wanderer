@@ -179,6 +179,7 @@ defmodule WandererAppWeb.MapsLive do
           is_adding_subscription?: false,
           selected_subscription: nil,
           options_form: options_form_data |> to_form(),
+          clear_status_on_removal?: WandererApp.Map.SystemStatus.enabled?(options_form_data),
           layout_options: [
             {"Left To Right", "left_to_right"},
             {"Top To Bottom", "top_to_bottom"}
@@ -589,7 +590,8 @@ defmodule WandererAppWeb.MapsLive do
         "auto_label_start_at_zero",
         "auto_label_ignore_return_hole",
         "auto_label_return_hole_symbol",
-        "auto_label_separator"
+        "auto_label_separator",
+        "clear_status_on_removal"
       ])
 
     {:ok, updated_map} = WandererApp.MapRepo.update_options(map, options)
@@ -600,7 +602,63 @@ defmodule WandererAppWeb.MapsLive do
       {:options_updated, map_id, options}
     )
 
-    {:noreply, socket |> assign(map: updated_map, options_form: options_form)}
+    {:noreply,
+     socket
+     |> assign(
+       map: updated_map,
+       options_form: options_form,
+       clear_status_on_removal?: WandererApp.Map.SystemStatus.enabled?(options)
+     )}
+  end
+
+  # Fork: the status-removal rule is toggled outside the options form so the
+  # browser can ask for confirmation first. Enabling it also clears the status
+  # of every unnamed system the map already has, drawn or not.
+  def handle_event(
+        "toggle_clear_status_on_removal",
+        %{"enable" => enable},
+        %{assigns: %{map_id: map_id, map: map}} = socket
+      ) do
+    enable? = enable == "true"
+
+    {:ok, options} = WandererApp.MapRepo.options_to_form_data(map)
+    options = Map.put(options, WandererApp.Map.SystemStatus.option_key(), to_string(enable?))
+    {:ok, updated_map} = WandererApp.MapRepo.update_options(map, options)
+
+    @pubsub_client.broadcast(
+      WandererApp.PubSub,
+      "maps:#{map_id}",
+      {:options_updated, map_id, options}
+    )
+
+    socket =
+      socket
+      |> assign(
+        map: updated_map,
+        options_form: options |> to_form(),
+        clear_status_on_removal?: enable?
+      )
+
+    if enable? do
+      case WandererApp.Map.SystemStatusReset.clear_unnamed(map_id) do
+        {:ok, count} ->
+          {:noreply,
+           socket
+           |> put_flash(
+             :info,
+             "Status removal enabled. Cleared the status of #{count} system(s) without a custom name."
+           )}
+
+        error ->
+          Logger.error("Failed to clear system statuses of map #{map_id}: #{inspect(error)}")
+
+          {:noreply,
+           socket
+           |> put_flash(:error, "Status removal enabled, but clearing existing statuses failed.")}
+      end
+    else
+      {:noreply, socket |> put_flash(:info, "Status removal disabled.")}
+    end
   end
 
   @impl true

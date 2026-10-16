@@ -530,7 +530,44 @@
                     placeholder="Select role to allow map data paste"
                     options={@allowed_paste_for_options}
                   />
+                  <input
+                    type="hidden"
+                    name={f[:clear_status_on_removal].name}
+                    value={f[:clear_status_on_removal].value}
+                  />
                 </.form>
+                <div
+                  :if={assigns |> Map.get(:options_form, false)}
+                  class="mt-2 border border-dashed border-stone-600 rounded p-3"
+                >
+                  <p class="text-xs text-stone-400 mb-2">
+                    Clear system status on removal: when a system is removed from the map (by hand or
+                    by the inactivity cleanup) its status is cleared unless the system has a custom name.
+                    Currently
+                    <span class="font-semibold">
+                      {if @clear_status_on_removal?, do: "enabled", else: "disabled"}
+                    </span>.
+                  </p>
+                  <.button
+                    :if={!@clear_status_on_removal?}
+                    id="enable-clear-status-on-removal-btn"
+                    type="button"
+                    phx-click="toggle_clear_status_on_removal"
+                    phx-value-enable="true"
+                    data-confirm="Enabling this clears the status of every system on this map that has no custom name, including systems that are no longer drawn. This cannot be undone. Proceed?"
+                  >
+                    <.icon name="hero-trash-solid" class="w-4 h-4" /> Enable and clear existing statuses
+                  </.button>
+                  <.button
+                    :if={@clear_status_on_removal?}
+                    id="disable-clear-status-on-removal-btn"
+                    type="button"
+                    phx-click="toggle_clear_status_on_removal"
+                    phx-value-enable="false"
+                  >
+                    Disable
+                  </.button>
+                </div>
               </div>
 
               <div :if={@active_settings_tab == "import"}>
