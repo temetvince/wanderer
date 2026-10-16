@@ -11,4 +11,8 @@ export type MapOptions = {
   show_linked_signature_id_temp_name: StringBoolean;
   show_temp_system_name: StringBoolean;
   store_custom_labels: StringBoolean;
+  // Fork: server-side auto-label formats per target; 'disabled' turns a target off.
+  auto_label_jumped_label: string;
+  auto_label_jumped_tag: string;
+  auto_label_jumped_temp_name: string;
 };

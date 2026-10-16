@@ -35,10 +35,12 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   holes never consume a slot, and the "Show linked signature ID as custom
   label part" display option is unaffected. The manual custom label input
   accepts 19 characters (upstream: 5), so a deep chain label can be typed or
-  edited by hand. The system context menu offers only that custom label (set
-  and clear); upstream's predefined labels (`A`, `B`, `C`, `1`, `2`, `3`) are
-  not offered, so the label on a system is always the chain label or a
-  hand-typed one.
+  edited by hand. While any auto-label format is enabled for the map, the
+  system context menu offers only that custom label (set and clear) and hides
+  upstream's predefined labels (`A`, `B`, `C`, `1`, `2`, `3`), so a label is
+  always the chain label or a hand-typed one; with auto-labeling disabled the
+  menu is upstream's. The map reads its options when it loads, so changing the
+  setting takes effect on the next map load.
   No database schema changes: everything lives in existing JSON columns, so
   upstream migrations continue to apply cleanly.
 - **Data-driven wormhole lifetimes.** A new wormhole connection's lifetime comes from static EVE data

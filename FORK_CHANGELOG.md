@@ -8,9 +8,10 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
 
 ### Changed
 
-- The Labels submenu of the system context menu offers only the custom label (set and clear). Upstream's
-  predefined labels (`A`, `B`, `C`, `1`, `2`, `3`) are no longer selectable, so a system's label is always
-  either the server-assigned chain label or one typed by hand.
+- While any auto-label format is enabled for the map, the Labels submenu of the system context menu offers
+  only the custom label (set and clear); upstream's predefined labels (`A`, `B`, `C`, `1`, `2`, `3`) are
+  hidden, so a system's label is always either the server-assigned chain label or one typed by hand. With
+  auto-labeling disabled the submenu is upstream's. The setting is read when the map loads.
 
 ## 2026-10-09
 

@@ -18,6 +18,7 @@ import { getSystemStaticInfo } from '@/hooks/Mapper/mapRootProvider/hooks/useLoa
 import { MapAddIcon, MapDeleteIcon } from '@/hooks/Mapper/icons';
 import { PingType } from '@/hooks/Mapper/types';
 import { useMapRootState } from '@/hooks/Mapper/mapRootProvider';
+import { isAutoLabelEnabled } from '@/hooks/Mapper/helpers/isAutoLabelEnabled.ts';
 import clsx from 'clsx';
 import { MenuItem } from 'primereact/menuitem';
 import { MenuItemWithInfo, WdMenuItem } from '@/hooks/Mapper/components/ui-kit';
@@ -43,17 +44,17 @@ export const useContextMenuSystemItems = ({
 }: Omit<ContextMenuSystemProps, 'contextMenuRef'>) => {
   const getTags = useTagMenu(systems, systemId, onSystemTag);
   const getStatus = useStatusMenu(systems, systemId, onSystemStatus);
-  const getLabels = useLabelsMenu(systems, systemId, onSystemLabels, onCustomLabelDialog);
+  const {
+    data: { pings, isSubscriptionActive, options },
+  } = useMapRootState();
+
+  const getLabels = useLabelsMenu(systems, systemId, onSystemLabels, onCustomLabelDialog, isAutoLabelEnabled(options));
   const getJumpMenu = useJumpMenu({ onJumpFrom, onJumpTo });
   const getWaypointMenu = useWaypointMenu(onWaypointSet);
   const canLockSystem = useMapCheckPermissions([UserPermission.LOCK_SYSTEM]);
   const canManageSystem = useMapCheckPermissions([UserPermission.UPDATE_SYSTEM]);
   const canDeleteSystem = useMapCheckPermissions([UserPermission.DELETE_SYSTEM]);
   const getUserRoutes = useUserRoute({ userHubs, systemId, onUserHubToggle });
-
-  const {
-    data: { pings, isSubscriptionActive },
-  } = useMapRootState();
 
   const ping = useMemo(() => (pings.length === 1 ? pings[0] : undefined), [pings]);
   const isShowPingBtn = useMemo(() => {
