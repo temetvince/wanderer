@@ -4,6 +4,14 @@ Differences between [temetvince/wanderer](https://github.com/temetvince/wanderer
 upstream [wanderer-industries/wanderer](https://github.com/wanderer-industries/wanderer). Only fork changes
 are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first.
 
+## 2026-10-16
+
+### Changed
+
+- The Labels submenu of the system context menu offers only the custom label (set and clear). Upstream's
+  predefined labels (`A`, `B`, `C`, `1`, `2`, `3`) are no longer selectable, so a system's label is always
+  either the server-assigned chain label or one typed by hand.
+
 ## 2026-10-09
 
 ### Fixed

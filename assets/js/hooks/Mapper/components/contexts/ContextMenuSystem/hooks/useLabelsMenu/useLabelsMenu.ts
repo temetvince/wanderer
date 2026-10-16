@@ -4,7 +4,6 @@ import { useCallback, useRef } from 'react';
 import { SolarSystemRawType } from '@/hooks/Mapper/types';
 import { getSystemById } from '@/hooks/Mapper/helpers';
 import clsx from 'clsx';
-import { LABELS, LABELS_INFO, LABELS_ORDER } from '@/hooks/Mapper/components/map/constants.ts';
 import { GRADIENT_MENU_ACTIVE_CLASSES } from '@/hooks/Mapper/constants.ts';
 import { LabelsManager } from '@/hooks/Mapper/utils/labelsManager.ts';
 
@@ -45,17 +44,18 @@ export const useLabelsMenu = (
       ];
     }
 
-    // const labels = getLabels(system.labels);
-    const hasLabels = labels?.list?.length > 0;
-    const statusList = hasLabels ? LABELS_ORDER : LABELS_ORDER.slice(1);
+    // Fork: only the free-text custom label is user-editable. The predefined
+    // labels (A, B, C, 1, 2, 3) are not offered; chain labels are written by
+    // the server.
+    const hasCustomLabel = labels.customLabel.length > 0;
 
     return [
       {
         label: 'Labels',
         icon: PrimeIcons.BOOKMARK,
-        className: clsx({ [GRADIENT_MENU_ACTIVE_CLASSES]: hasLabels }),
+        className: clsx({ [GRADIENT_MENU_ACTIVE_CLASSES]: hasCustomLabel }),
         items: [
-          ...(labels.customLabel.length > 0
+          ...(hasCustomLabel
             ? [
                 {
                   label: 'Clear custom label',
@@ -72,22 +72,6 @@ export const useLabelsMenu = (
             icon: 'pi pi-language',
             command: onCustomLabelDialog,
           },
-          { separator: true },
-          ...statusList.map(x => ({
-            label: LABELS_INFO[x].name,
-            icon: x === LABELS.clear ? PrimeIcons.TRASH : PrimeIcons.BOOKMARK,
-            command: () => {
-              if (x === LABELS.clear) {
-                labels.clearLabels();
-                onSystemLabels(labels.toString());
-                return;
-              }
-
-              labels.toggleLabel(x);
-              onSystemLabels(labels.toString());
-            },
-            className: clsx({ [GRADIENT_MENU_ACTIVE_CLASSES]: labels.hasLabel(x) }),
-          })),
         ],
       },
     ];
