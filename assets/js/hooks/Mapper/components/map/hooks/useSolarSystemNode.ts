@@ -52,6 +52,7 @@ export interface SolarSystemNodeVars {
   classTitle: string | null;
   temporaryName?: string | null;
   description: string | null;
+  temporaryNotes: string;
   comments_count: number | null;
   systemHighlighted: string | undefined;
 }
@@ -133,7 +134,7 @@ export const useSolarSystemNode = (props: NodeProps<MapSolarSystemType>): SolarS
 
   const linkedSigPrefix = useMemo(() => (linkedSigEveId ? linkedSigEveId.split('-')[0] : null), [linkedSigEveId]);
 
-  const { labelsInfo, labelCustom } = useLabelsInfo({
+  const { labelsInfo, labelCustom, temporaryNotes } = useLabelsInfo({
     labels,
     linkedSigPrefix,
     isShowLinkedSigId,
@@ -219,6 +220,7 @@ export const useSolarSystemNode = (props: NodeProps<MapSolarSystemType>): SolarS
     solarSystemName: solar_system_name,
     isRally,
     description,
+    temporaryNotes,
     comments_count,
     systemHighlighted,
   };

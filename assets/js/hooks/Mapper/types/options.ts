@@ -15,4 +15,6 @@ export type MapOptions = {
   auto_label_jumped_label: string;
   auto_label_jumped_tag: string;
   auto_label_jumped_temp_name: string;
+  // Fork: only custom-named systems keep their status when removed from the map.
+  clear_status_on_removal: StringBoolean;
 };

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { getSystemById, sortWHClasses } from '@/hooks/Mapper/helpers';
 import { InfoDrawer, MarkdownTextViewer, WHClassView, WHEffectView } from '@/hooks/Mapper/components/ui-kit';
 import { getSystemStaticInfo } from '@/hooks/Mapper/mapRootProvider/hooks/useLoadSystemStatic';
+import { LabelsManager } from '@/hooks/Mapper/utils/labelsManager.ts';
 
 interface SystemInfoContentProps {
   systemId: string;
@@ -16,7 +17,8 @@ export const SystemInfoContent = ({ systemId }: SystemInfoContentProps) => {
 
   const sys = getSystemById(systems, systemId)! || {};
   const systemStaticInfo = getSystemStaticInfo(systemId)!;
-  const { description } = sys;
+  const { description, labels } = sys;
+  const temporaryNotes = useMemo(() => new LabelsManager(labels ?? '').temporaryNotes, [labels]);
   const { system_class, region_name, constellation_name, statics, effect_name, effect_power } = systemStaticInfo || {};
   const isWH = isWormholeSpace(system_class);
   const sortedStatics = useMemo(() => sortWHClasses(wormholesData, statics), [wormholesData, statics]);
@@ -52,6 +54,18 @@ export const SystemInfoContent = ({ systemId }: SystemInfoContentProps) => {
           }
         >
           <MarkdownTextViewer>{description}</MarkdownTextViewer>
+        </InfoDrawer>
+      )}
+
+      {temporaryNotes && (
+        <InfoDrawer
+          title={
+            <div className="flex gap-1 items-center">
+              <div>Temporary Notes</div>
+            </div>
+          }
+        >
+          <MarkdownTextViewer>{temporaryNotes}</MarkdownTextViewer>
         </InfoDrawer>
       )}
     </div>

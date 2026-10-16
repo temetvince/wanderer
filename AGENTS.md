@@ -138,6 +138,10 @@ is deliberately not published on the host.
   `lib/wanderer_app/map/system_status_reset.ex` is the one-time wipe run when the option is enabled from
   the map settings page (`toggle_clear_status_on_removal` in `maps_live.ex`). Tested by
   `test/unit/system_status_test.exs`.
+- `lib/wanderer_app/map/temporary_notes.ex` — pure read/strip of the temporary notes kept under
+  `tempNotes` in the system `labels` JSON (no column). Stripped in `delete_systems`; the client reads
+  and writes it through `LabelsManager` (`assets/js/hooks/Mapper/utils/labelsManager.ts`). Tested by
+  `test/unit/temporary_notes_test.exs`.
 - Map options: defaults in `lib/wanderer_app/repositories/map_repo.ex`, whitelist and form in
   `lib/wanderer_app_web/live/maps/maps_live.ex` + `.html.heex`. Options are a JSON blob on the map record.
 - Client-side labeling was removed on purpose; `assets/js/hooks/Mapper/helpers/bookmarkFormatHelper.ts` now

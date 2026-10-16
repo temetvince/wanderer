@@ -27,5 +27,7 @@ export function useLabelsInfo({ labels, linkedSigPrefix, isShowLinkedSigId }: Us
     return labelsManager.customLabel;
   }, [linkedSigPrefix, isShowLinkedSigId, labelsManager]);
 
-  return { labelsInfo, labelCustom };
+  const temporaryNotes = labelsManager.temporaryNotes;
+
+  return { labelsInfo, labelCustom, temporaryNotes };
 }

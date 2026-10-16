@@ -100,6 +100,7 @@ const INITIAL_DATA: MapRootData = {
     auto_label_jumped_label: 'disabled',
     auto_label_jumped_tag: 'disabled',
     auto_label_jumped_temp_name: 'disabled',
+    clear_status_on_removal: 'false',
   },
   isSubscriptionActive: false,
   linkSignatureToSystem: null,

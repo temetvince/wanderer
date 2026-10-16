@@ -53,6 +53,14 @@ This is [temetvince/wanderer](https://github.com/temetvince/wanderer), a fork of
   start clean. Upstream keeps every status. A system is custom named when its
   name differs from the solar system's default name; the rule lives in
   `WandererApp.Map.SystemStatus`.
+- **Temporary system notes.** System settings has a "Temporary Notes" field
+  under the description. Notes show
+  in the system info widget and light the node's description icon like the
+  permanent description, but they are dropped the moment the system is
+  removed from the map (by hand or by the inactivity cleanup). While the
+  status-removal option is on, the dialog's name field reads "Custom name
+  (set to save Status)". No schema change: notes are stored in the system's
+  labels JSON under `tempNotes` (`WandererApp.Map.TemporaryNotes`).
 - **Data-driven wormhole lifetimes.** A new wormhole connection's lifetime comes from static EVE data
   instead of a guess by system class: a frigate hole is 4.5h; otherwise the source system's static that leads
   to the target's class, then the target's static that leads back (the K162 side), then every wandering type

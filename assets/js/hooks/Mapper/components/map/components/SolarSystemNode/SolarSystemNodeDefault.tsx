@@ -147,11 +147,12 @@ export const SolarSystemNodeDefault = memo((props: NodeProps<MapSolarSystemType>
                   {nodeVars.hubs.includes(nodeVars.solarSystemId) && (
                     <i className={clsx(PrimeIcons.MAP_MARKER, classes.mapMarker)} />
                   )}
-                  {nodeVars.description != null && nodeVars.description !== '' && (
+                  {((nodeVars.description != null && nodeVars.description !== '') ||
+                    nodeVars.temporaryNotes !== '') && (
                     <WdTooltipWrapper
                       className={classes.descriptionIconWrapper}
                       position={TooltipPosition.top}
-                      content={`System have description`}
+                      content={nodeVars.description ? `System have description` : `System have temporary notes`}
                     >
                       <i className={clsx('pi hero-chat-bubble-bottom-center-text', classes.descriptionIcon)} />
                     </WdTooltipWrapper>
@@ -172,19 +173,13 @@ export const SolarSystemNodeDefault = memo((props: NodeProps<MapSolarSystemType>
         <>
           {nodeVars.unsplashedLeft.length > 0 && (
             <div className={classes.Unsplashed}>
-              <UnsplashedSignatureColumn
-                signatures={nodeVars.unsplashedLeft}
-                wormholesData={nodeVars.wormholesData}
-              />
+              <UnsplashedSignatureColumn signatures={nodeVars.unsplashedLeft} wormholesData={nodeVars.wormholesData} />
             </div>
           )}
 
           {nodeVars.unsplashedRight.length > 0 && (
             <div className={clsx(classes.Unsplashed, classes['Unsplashed--right'])}>
-              <UnsplashedSignatureColumn
-                signatures={nodeVars.unsplashedRight}
-                wormholesData={nodeVars.wormholesData}
-              />
+              <UnsplashedSignatureColumn signatures={nodeVars.unsplashedRight} wormholesData={nodeVars.wormholesData} />
             </div>
           )}
         </>

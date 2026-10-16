@@ -343,6 +343,8 @@ defmodule WandererApp.Map.Server.SystemsImpl do
       |> case do
         {:ok, removed_system} ->
           if clear_status?, do: clear_status_unless_custom_named(removed_system)
+          # Fork: the temporary notes never outlives the system on the map.
+          clear_temporary_notes(removed_system)
 
           :ok = WandererApp.Map.remove_system(map_id, solar_system_id)
           @ddrt.delete([solar_system_id], "rtree_#{map_id}")
@@ -409,6 +411,28 @@ defmodule WandererApp.Map.Server.SystemsImpl do
   end
 
   defp clear_status_unless_custom_named(_system), do: :ok
+
+  defp clear_temporary_notes(%{labels: labels, solar_system_id: solar_system_id} = system) do
+    if WandererApp.Map.TemporaryNotes.present?(labels) do
+      system
+      |> WandererApp.MapSystemRepo.update_labels(%{
+        labels: WandererApp.Map.TemporaryNotes.strip(labels)
+      })
+      |> case do
+        {:ok, _system} ->
+          :ok
+
+        error ->
+          Logger.error(
+            "Failed to clear temporary notes of removed system #{solar_system_id}: #{inspect(error)}"
+          )
+      end
+    end
+
+    :ok
+  end
+
+  defp clear_temporary_notes(_system), do: :ok
 
   defp track_systems_removed(map_id, user_id, character_id, removed_solar_system_ids)
        when not is_nil(user_id) and not is_nil(character_id) do

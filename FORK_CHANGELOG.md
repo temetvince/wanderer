@@ -6,6 +6,14 @@ are recorded here; upstream's own `CHANGELOG.md` is never modified. Newest first
 
 ## 2026-10-16
 
+### Added
+
+- A "Temporary Notes" field in System settings, under the description. Notes appear in the system info
+  widget and light the node's description icon like the
+  permanent description, and are cleared when the system is removed from the map (by hand or by the
+  inactivity cleanup). While the status-removal option is on, the dialog's name field reads "Custom name
+  (set to save Status)".
+
 ### Changed
 
 - While any auto-label format is enabled for the map, the Labels submenu of the system context menu offers

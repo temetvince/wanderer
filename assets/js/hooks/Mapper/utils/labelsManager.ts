@@ -1,6 +1,8 @@
 export type LabelsType = {
   customLabel: string;
   labels: string[];
+  // Fork: free text cleared by the server when the system leaves the map.
+  tempNotes?: string;
 };
 
 export class LabelsManager {
@@ -82,6 +84,19 @@ export class LabelsManager {
 
   get customLabel() {
     return this.parsedLabels.customLabel;
+  }
+
+  get temporaryNotes() {
+    return this.parsedLabels.tempNotes ?? '';
+  }
+
+  updateTemporaryNotes(value: string) {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      delete this.parsedLabels.tempNotes;
+    } else {
+      this.parsedLabels.tempNotes = value;
+    }
   }
 
   get list() {

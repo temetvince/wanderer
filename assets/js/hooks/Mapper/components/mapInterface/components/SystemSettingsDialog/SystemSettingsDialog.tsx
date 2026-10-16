@@ -24,6 +24,9 @@ export const SystemSettingsDialog = ({ systemId, visible, setVisible }: SystemSe
   } = useMapRootState();
 
   const isTempSystemNameEnabled = useMapGetOption('show_temp_system_name') === 'true';
+  // Fork: with this map option on, only a custom-named system keeps its status
+  // when it leaves the map, so the name field says so.
+  const isClearStatusOnRemoval = useMapGetOption('clear_status_on_removal') === 'true';
 
   const system = getSystemById(systems, systemId);
   const systemStaticInfo = getSystemStaticInfo(systemId);
@@ -32,16 +35,40 @@ export const SystemSettingsDialog = ({ systemId, visible, setVisible }: SystemSe
   const [label, setLabel] = useState('');
   const [temporaryName, setTemporaryName] = useState('');
   const [description, setDescription] = useState('');
+  const [temporaryNotes, setTemporaryNotes] = useState('');
   const inputRef = useRef<HTMLInputElement>();
 
-  const ref = useRef({ name, description, temporaryName, label, outCommand, systemId, system, systemStaticInfo });
-  ref.current = { name, description, label, temporaryName, outCommand, systemId, system, systemStaticInfo };
+  const ref = useRef({
+    name,
+    description,
+    temporaryNotes,
+    temporaryName,
+    label,
+    outCommand,
+    systemId,
+    system,
+    systemStaticInfo,
+  });
+  ref.current = {
+    name,
+    description,
+    temporaryNotes,
+    label,
+    temporaryName,
+    outCommand,
+    systemId,
+    system,
+    systemStaticInfo,
+  };
 
   const handleSave = useCallback(() => {
-    const { name, description, label, temporaryName, outCommand, systemId, system, systemStaticInfo } = ref.current;
+    const { name, description, temporaryNotes, label, temporaryName, outCommand, systemId, system, systemStaticInfo } =
+      ref.current;
 
     const outLabel = new LabelsManager(system?.labels ?? '');
     outLabel.updateCustomLabel(label);
+    // Fork: the temporary notes ride along in the labels JSON.
+    outLabel.updateTemporaryNotes(temporaryNotes);
 
     outCommand({
       type: OutCommand.updateSystemLabels,
@@ -105,6 +132,7 @@ export const SystemSettingsDialog = ({ systemId, visible, setVisible }: SystemSe
 
     setName(system.name || '');
     setLabel(labels.customLabel);
+    setTemporaryNotes(labels.temporaryNotes);
     setTemporaryName(system.temporary_name || '');
     setDescription(system.description || '');
   }, []);
@@ -128,7 +156,7 @@ export const SystemSettingsDialog = ({ systemId, visible, setVisible }: SystemSe
         <div className="flex flex-col gap-3 px-2">
           <div className="flex flex-col gap-2">
             <div className="flex flex-col gap-1">
-              <label htmlFor="username">Custom name</label>
+              <label htmlFor="username">Custom name{isClearStatusOnRemoval ? ' (set to save Status)' : ''}</label>
 
               <IconField>
                 {name !== systemStaticInfo?.solar_system_name && (
@@ -216,6 +244,16 @@ export const SystemSettingsDialog = ({ systemId, visible, setVisible }: SystemSe
               <label htmlFor="username">Description</label>
               <div className="h-[200px]">
                 <MarkdownEditor value={description} onChange={e => setDescription(e)} height="180px" />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="temporaryNotes">
+                Temporary Notes
+                <span className="ml-1 text-xs text-stone-400">(cleared when the system leaves the map)</span>
+              </label>
+              <div className="h-[140px]">
+                <MarkdownEditor value={temporaryNotes} onChange={e => setTemporaryNotes(e)} height="120px" />
               </div>
             </div>
           </div>

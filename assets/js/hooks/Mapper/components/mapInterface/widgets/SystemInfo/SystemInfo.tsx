@@ -56,7 +56,7 @@ export const SystemInfo = () => {
                 <WdImgButton
                   className="pi pi-pen-to-square"
                   onClick={() => setVisible(true)}
-                  tooltip={{ position: TooltipPosition.top, content: 'Edit system name and description' }}
+                  tooltip={{ position: TooltipPosition.top, content: 'Edit system name, description and notes' }}
                 />
               </LayoutEventBlocker>
             </div>
