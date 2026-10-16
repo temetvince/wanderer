@@ -143,5 +143,5 @@ is deliberately not published on the host.
 - eve-route-builder: `src/utils/dijkstra.ts` (search core + `secure` J-space rule) with reference-comparison
   tests in `src/utils/*.test.ts`. The committed `src/assets/graph.json` is the source of truth — the
   Dockerfile must **never** regenerate it during builds (the Fuzzwork CSV URLs 404 and `generateGraph` would
-  silently corrupt it). Two upstream test suites fail on pristine checkouts; only `npx jest src/utils` is
-  expected green.
+  silently corrupt it). Two upstream test suites fail on pristine checkouts (`src/utils/graph.test.ts` snapshots and
+  the controller spec); only `npx jest src/utils/dijkstra src/utils/heap` is expected green.
